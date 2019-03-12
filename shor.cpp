@@ -311,7 +311,7 @@ void subdivide_polygon(
 		
 		// if merged polygon is simple, drop edge he/rhe
 		// erase L[p2], add to L[p1]
-	    if(is_simple_polygon(poly) && is_convex(poly)){
+	    if(is_simple_polygon(poly)){
 			H[he]=-1;
 			H[rhe]=-1;
 			G[p2] = p1; // p2 belongs to p1 now
@@ -549,13 +549,9 @@ void simplify_triangulation(
 bool Shor_van_wyck(
 	const Eigen::MatrixXd& P,
 	const Eigen::VectorXi& R,
-    const Eigen::MatrixXd& C,
-    const Eigen::VectorXi& cp,
-    const Eigen::MatrixXi& E,
     const std::string flags,
 	Eigen::MatrixXd& V,
 	Eigen::MatrixXi& F,
-    std::vector<std::vector<int>>& L,
     bool do_refine
 ){
 
@@ -598,97 +594,6 @@ bool Shor_van_wyck(
         return true;
     }
     V = P;
-    // igl::opengl::glfw::Viewer vr;
-    // vr.data().set_mesh(V,F);
-    // for(int i=0;i<C.rows();i++){
-    //     vr.data().add_points(C.row(i),Eigen::RowVector3d(0,0,0));
-    // }
-    // vr.launch();
-    // embed constraint points
-    igl::AABB<Eigen::MatrixXd,2> aabb;
-	aabb.init(V,F);
-    Eigen::VectorXi I;
-	igl::in_element(V,F,C,aabb,I);
-    // gather info of where each constraint points land
-    // since they may land in the same triangle
-    std::map<int,std::vector<int>> I_vec;
-    std::map<int,int> order;
-    for(int i=0;i<cp.rows();i++){
-        order[cp(i)] = i;
-    }
-    for(int i=0;i<I.rows();i++){
-        if(I(i) == -1){
-            std::cout<<"constraints outside\n";
-            exit(0);
-        }if(I_vec.find(I(i)) == I_vec.end())
-            I_vec[I(i)] = {i};
-        else
-            I_vec[I(i)].push_back(i);
-    }
-    int nv0 = V.rows();
-    V.conservativeResize(V.rows()+cp.rows(),Eigen::NoChange);
-    // triangulate individually
-    for(auto p: I_vec){
-        std::cout<<"face "<<p.first<<" has vt: ";
-        for(auto t: p.second)
-            std::cout<<t<<" ";
-        std::cout<<std::endl;
-        int fid = p.first;
-        std::vector<int> v_list = p.second;
-        Eigen::MatrixXd in_poly(3+v_list.size(),2);
-        for(int i=0;i<3;i++)
-            in_poly.row(i)<<V.row(F(fid,i));
-        for(int k=0;k<v_list.size();k++){
-            in_poly.row(3+k)<<C.row(v_list[k]);
-        }
-        Eigen::MatrixXi LE(3,2);
-        LE<<0,1,1,2,2,0;
-        Eigen::MatrixXd LV;
-        Eigen::MatrixXi LF;
-		igl::triangle::triangulate(in_poly,LE,Eigen::MatrixXd(),"YQ",LV,LF);
-        // std::cout<<"size of in_poly "<<in_poly.rows()<<std::endl;
-        // std::cout<<LF<<std::endl;
-        // std::cout<<F.row(fid)<<std::endl;
-        // std::cout<<"current V size "<<V.rows()<<std::endl;
-        // std::cout<<"new points "<<v_list.size()<<std::endl;
-        //int nv = V.rows();
-        //V.conservativeResize(V.rows()+v_list.size(),Eigen::NoChange);
-        for(int i=0;i<v_list.size();i++){
-            V.row(nv0+v_list[i])<<C.row(v_list[i]);
-        }
-        Eigen::VectorXi M(LV.rows());
-        M(0) = F(fid,0);
-        M(1) = F(fid,1);
-        M(2) = F(fid,2);
-        for(int i=0;i<LV.rows()-3;i++){
-            M(i+3) = nv0+v_list[i];
-        }
-
-        int nf = F.rows();
-        F.conservativeResize(F.rows()+LF.rows(),3);
-        for(int i=0;i<LF.rows();i++){
-            for(int k=0;k<3;k++){
-                F(nf+i,k) = M(LF(i,k));
-            }
-        }
-        F.row(fid)<<-1,-1,-1;
-        // igl::opengl::glfw::Viewer vr;
-        // vr.data().set_mesh(LV,LF);
-        // vr.launch();
-
-    }
-    //exit(0);
-    // for(int i=0;i<I.rows();i++){
-    //     F.conservativeResize(F.rows()+3,3);
-    //     V.conservativeResize(V.rows()+1,2);
-    //     V.bottomRows(1) = C.row(i);
-    //     int id = V.rows()-1;
-    //     int f = I(i);
-    //     F.bottomRows(3) << F(f,0),F(f,1),id,
-    //                        F(f,1),F(f,2),id,
-    //                        F(f,2),F(f,0),id; 
-    //     F.row(f)<<-1,-1,-1;
-    // }
     //drop (-1,-1,-1) faces
     auto Ft = F;
     int nFt = 0;
@@ -699,32 +604,10 @@ bool Shor_van_wyck(
     }
     Ft.conservativeResize(nFt,3);
     F = Ft;
-    // igl::opengl::glfw::Viewer vr;
-    // vr.data().set_mesh(V,F);
-    // vr.launch();
 	// [simplify mesh (subdivide into small polygons)]
-	//std::vector<std::vector<int>> L;
+	std::vector<std::vector<int>> L;
 	subdivide_polygon(V,F,L);
-    // igl::opengl::glfw::Viewer v;
-    // igl::opengl::glfw::imgui::ImGuiMenu menu;
-    // v.plugins.push_back(&menu);
-    // v.data().set_mesh(V,F);
-    // v.data().add_points(C,Eigen::RowVector3d(1,0,0));
-    // for(int i=0;i<L.size();i++){
-    //     for(int j=0;j<L[i].size();j++){
-    //         int a = L[i][j];
-    //         int b = L[i][(j+1)%L[i].size()];
-    //         v.data().add_edges(V.row(a),V.row(b),Eigen::RowVector3d(1,0,0));
-    //     }
-    // }
-    // Eigen::VectorXi bi;
-    // igl::boundary_loop(F,bi);
-    // for(int i=0;i<bi.rows();i++){
-    //     v.data().add_edges(V.row(bi(i)),V.row(bi((i+1)%bi.rows())),Eigen::RowVector3d(0,1,0));
-    // }
-    // v.launch();
-	// [triangulate each simple polygon and merge]
-	//simplify_triangulation(P,C,cp,E,L,flags,V,F);
-	//is_mesh_valid(V,F);
+    // [refine each small polygon]
+    // TODO
     return true;
 }

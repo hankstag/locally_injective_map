@@ -110,6 +110,4 @@ void ear_clipping(
 	igl::slice(RT,C,nR);
 }
 
-//template void ear_clipping<Eigen::Matrix<double, -1, -1, 0, -1, -1> >(Eigen::MatrixBase<Eigen::Matrix<double, -1, -1, 0, -1, -1> > const&, Eigen::Matrix<int, -1, 1, 0, -1, 1> const&, Eigen::Matrix<int, -1, 1, 0, -1, 1>&, Eigen::Matrix<int, -1, -1, 0, -1, -1>&);
 template void ear_clipping<Eigen::Matrix<double, -1, -1, 0, -1, -1> >(Eigen::MatrixBase<Eigen::Matrix<double, -1, -1, 0, -1, -1> > const&, Eigen::Matrix<int, -1, 1, 0, -1, 1> const&, Eigen::Matrix<int, -1, 1, 0, -1, 1>&, Eigen::Matrix<int, -1, -1, 0, -1, -1>&, Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1> >&, Eigen::Matrix<int, -1, 1, 0, -1, 1>&);
-//template void ear_clipping<Eigen::Matrix<mpfr::mpreal, -1, -1, 0, -1, -1> >(Eigen::MatrixBase<Eigen::Matrix<mpfr::mpreal, -1, -1, 0, -1, -1> > const&, Eigen::Matrix<int, -1, 1, 0, -1, 1> const&, Eigen::Matrix<int, -1, 1, 0, -1, 1>&, Eigen::Matrix<int, -1, -1, 0, -1, -1>&, Eigen::PlainObjectBase<Eigen::Matrix<mpfr::mpreal, -1, -1, 0, -1, -1> >&, Eigen::Matrix<int, -1, 1, 0, -1, 1>&);
