@@ -50,7 +50,7 @@ void set_rotation_index(
         }
         int ri = static_cast<int>(std::floor(sum / igl::PI / 2));
         if(ri>0){
-            std::cout<<B(i)<<","<<sum*180/igl::PI<<std::endl;
+            std::cout<<i<<","<<sum*180/igl::PI<<std::endl;
             R(i) = ri;
         }
     }
