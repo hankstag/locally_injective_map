@@ -68,7 +68,17 @@ int main(int argc, char *argv[])
         std::cout<<"-uv: uv model"<<std::endl;
         exit(0);
     }
-    test_is_simple_polygon();
+    test_segment_segment_intersect();
+    exit(0);
+    // test_is_simple_polygon();
+    // Eigen::RowVector2d a(0,0);
+    // Eigen::RowVector2d b(0,1.1);
+    // Eigen::RowVector2d c(0,1.1);
+    // Eigen::RowVector2d d(0,3.3);
+    // Eigen::RowVector2d _q;
+    // if(segment_segment_intersect(a,b,c,d,_q,true)){
+    //     std::cout<<_q<<std::endl;
+    // }
     int loop, threshold;
     bool extract_bd;
     std::string uv_model;

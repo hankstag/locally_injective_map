@@ -1,5 +1,4 @@
 #include "shor.h"
-#include "is_inside_polygon.h"
 #include <igl/boundary_loop.h>
 #include <igl/triangle_triangle_adjacency.h>
 #include "util.h"
@@ -300,12 +299,12 @@ void subdivide_polygon(
 		
 		// if merged polygon is simple, drop edge he/rhe
 		// erase L[p2], add to L[p1]
-		// Polygon_2 poly_cgal;
-		// for(int i=0;i<poly.rows();i++){
-		// 	poly_cgal.push_back(Point(poly(i,0),poly(i,1)));
-		// }
-	    if(is_simple_polygon(poly)){
-		// if(poly_cgal.is_simple()){
+		Polygon_2 poly_cgal;
+		for(int i=0;i<poly.rows();i++){
+			poly_cgal.push_back(Point(poly(i,0),poly(i,1)));
+		}
+	    //if(is_simple_polygon(poly)){
+		if(poly_cgal.is_simple()){
 			H[he]=-1;
 			H[rhe]=-1;
 			G[p2] = p1; // p2 belongs to p1 now
