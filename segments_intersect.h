@@ -18,13 +18,13 @@ bool segment_segment_intersect(
     typename DerivedV::Scalar eps
 );
 
-template <typename DerivedV>
+template <typename Scalar>
 bool segment_segment_intersect(
-    typename DerivedV::Scalar a[2], 
-    typename DerivedV::Scalar b[2], 
-    typename DerivedV::Scalar c[2], 
-    typename DerivedV::Scalar d[2],
-    typename DerivedV::Scalar eps
+    const Scalar a[2], 
+    const Scalar b[2], 
+    const Scalar c[2], 
+    const Scalar d[2],
+    const Scalar eps
 );
 
 void test_segment_segment_intersect();

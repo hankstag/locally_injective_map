@@ -89,3 +89,4 @@ bool segment_segment_intersect(
 
 template short orientation<Eigen::Matrix<double, 3, 2, 0, 3, 2> >(Eigen::MatrixBase<Eigen::Matrix<double, 3, 2, 0, 3, 2> > const&);
 template short orientation<Eigen::Matrix<double, -1, -1, 0, -1, -1> >(Eigen::MatrixBase<Eigen::Matrix<double, -1, -1, 0, -1, -1> > const&);
+template bool segment_segment_intersect<double>(double const*, double const*, double const*, double const*, double);
