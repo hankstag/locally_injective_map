@@ -1,9 +1,5 @@
 #include "segments_intersect.h"
-#include <iostream>
-#include <queue>
-#include <algorithm>
 #include <igl/copyleft/cgal/orient2D.h>
-#include <bitset> 
 
 template <typename DerivedV>
 short orientation(const Eigen::MatrixBase<DerivedV>& P){

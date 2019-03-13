@@ -8,52 +8,48 @@ bool is_simple_polygon(const Eigen::MatrixXd& P){
     // P: [a, b, c, d,...]
     // change it to the form of edges
     // E: [a, b; b, c; c, d;...]
-    Eigen::MatrixXd E(P.rows(),4);
-    E.resize(P.rows(),4);
-    for(int i=0;i<P.rows();i++)
-        E.row(i)<<P.row(i),P.row((i+1)%P.rows());
-    // sort ends of segments, pointing up-right
-    for(int i=0;i<E.rows();i++){
-        if(E(i,0) > E(i,2)){
-            std::swap(E(i,2),E(i,0));
-            std::swap(E(i,3),E(i,1));
-        }else if(E(i,0) == E(i,2) && E(i,1) > E(i,3)){
-            std::swap(E(i,3),E(i,1));
-        }
-    }
     typedef std::pair<double,double> Point;
-    typedef std::pair<Point,bool> Event; // (segment_id, enter/leave)
     typedef std::pair<Point,Point> Segment;
-    typedef std::set<Segment> SweepQueue;
+    typedef std::tuple<Point,int,bool> Event; // (point, segment_id, enter/leave)
 
     // build segments list
     std::vector<Segment> segments;
     for(int i=0;i<P.rows();i++){
         int i_1 = (i+1)%P.rows();
-        Point l_pt = Point(P(i,  0),P(i  ,1));
-        Point r_pt = Point(P(i_1,0),P(i_1,1));
-        if(l_pt.first>r_pt.first ||
-           (l_pt.first == r_pt.first &&
-            l_pt.second < r_pt.second)
-        )
-            std::swap(l_pt,r_pt);
-        segments.push_back(Segment(l_pt,r_pt));
+        Point p1 = Point(P(i,  0),P(i  ,1));
+        Point p2 = Point(P(i_1,0),P(i_1,1));
+        if(p1>p2)
+            segments.push_back(Segment(p2,p1));
+        else 
+            segments.push_back(Segment(p1,p2));
     }
 
     // build event list (sort segments)
-    auto cmp = [](Event a, Event b){ // a < b ? true : false
-        if((a.first.first > b.first.first) ||
-           (a.first.first == b.first.first && a.first.second > b.first.second)
-        ){
-            return false;
-        }else if(a.first.first == b.first.first && 
-                 a.first.second == b.first.second)
-            return a.second < b.second;
+    auto later = [](const Event& a, const Event& b){
+        return a > b;
     };
-    std::priority_queue<Event, std::vector<Event>, decltype(cmp)> Q(cmp);
     // for(Segment seg: segments){
-    //     std::cout<<"("<<seg.first.first<<","<<seg.first.second<<")"<<" - ("<<seg.second.first<<","<<seg.second.second<<")"<<std::endl;
+    //     std::cout<<"("<<seg.first.first<<","<<seg.first.second<<")"<<" - ("<<seg.second.first<<","<<seg.second.second<<")\n";
     // }
+    Event t1(Point(0,1),1,true);
+    Event t2(Point(0,8),4,true);
+    std::cout<<"t1 < t2: "<<later(t1,t2)<<std::endl;
+    std::cout<<"t2 < t1: "<<later(t2,t1)<<std::endl;
+    std::priority_queue<Event,std::vector<Event>,decltype(later)> Q(later);
+    std::cout<<"#segments "<<segments.size()<<std::endl;
+    for(int i=0;i<segments.size();i++){
+        Q.push(Event(segments[i].first,i,true));
+        Q.push(Event(segments[i].second,i,false));
+    }
+    while(!Q.empty()){
+        Event p = Q.top();
+        Q.pop();
+        std::cout<<std::get<1>(p);
+        if(std::get<2>(p))
+            std::cout<<" enter"<<std::endl;
+        else 
+            std::cout<<" leave\n";
+    }
 }
 
 void test_is_simple_polygon(){
