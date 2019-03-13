@@ -85,10 +85,6 @@ struct Angle
 void simplify_triangulation(
 	const Eigen::MatrixXd& V_i,
     const Eigen::MatrixXd& C,
-    const Eigen::VectorXi& cp,
-    const Eigen::MatrixXi& E,
-	const std::vector<std::vector<int>>& L_i,
-    const std::string& flags,
 	Eigen::MatrixXd& V,
 	Eigen::MatrixXi& F
 );
@@ -138,13 +134,9 @@ void set_rotation_index(
 bool Shor_van_wyck(
 	const Eigen::MatrixXd& P,
 	const Eigen::VectorXi& R,
-    const Eigen::MatrixXd& C,
-    const Eigen::VectorXi& cp, // closest boundary point index for every C (only for ambiguity points)
-    const Eigen::MatrixXi& E,
     const std::string flags,
 	Eigen::MatrixXd& V,
 	Eigen::MatrixXi& F,
-    std::vector<std::vector<int>>& L,
     bool do_refine=true // false meaning no internal vertices
 );
 

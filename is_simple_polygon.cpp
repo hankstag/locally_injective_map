@@ -1,7 +1,29 @@
 #include "is_simple_polygon.h"
 #include "segments_intersect.h"
+#include <igl/segment_segment_intersect.h>
 #include <queue>
 #include <algorithm>
+
+bool is_simple_polygon_n(const Eigen::MatrixXd& P){
+    // P: [a, b, c, d,...]
+    // change it to the form of edges
+    // E: [a, b; b, c; c, d;...]
+    Eigen::MatrixXd E(P.rows(),4);
+    E.resize(P.rows(),4);
+    for(int i=0;i<P.rows();i++)
+        E.row(i)<<P.row(i),P.row((i+1)%P.rows());
+    // sort ends of segments, pointing up-right
+    for(int i=0;i<E.rows();i++){
+        if(E(i,0) > E(i,2)){
+            std::swap(E(i,2),E(i,0));
+            std::swap(E(i,3),E(i,1));
+        }else if(E(i,0) == E(i,2) && E(i,1) > E(i,3)){
+            std::swap(E(i,3),E(i,1));
+        }
+    }
+    typedef std::tuple<double,double,double,int> Event;
+    
+}
 
 // Shamos_Hoey https://cs.stackexchange.com/questions/22443/shamos-hoey-line-segment-intersection-runtime
 template <typename DerivedV>

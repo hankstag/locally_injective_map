@@ -88,7 +88,8 @@ int main(int argc, char *argv[])
     set_rotation_index(V,F,R);
     bool x = test_flip(V, F);
     std::cout<<"flipped "<<x<<std::endl;
-    bool succ = Shor_van_wyck(P,R,C,cp,E,"",V,F,L,true);
+    bool succ = Shor_van_wyck(P,R,"",V,F,true);
+    //bool succ = Shor_van_wyck(P,R,V,F);
     if(succ)
         std::cout<<"succ"<<std::endl;
     else

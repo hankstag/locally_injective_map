@@ -70,8 +70,6 @@ void add_triangle(
 	add_triangle(F,k,j,K,Q);
 };
 
-// for debug shor
-
 bool weakly_self_overlapping(
 	const Eigen::MatrixXd& P,
 	const Eigen::VectorXi& R,
@@ -146,22 +144,6 @@ bool weakly_self_overlapping(
 	if(h==-1) return false;
 	add_triangle(F,h,(h-1+N)%N,K,Q);
 	return true;
-}
-
-bool is_convex(
-    const Eigen::MatrixXd& P
-){
-    for(int i=0;i<P.rows();i++){
-        int prev = (i-1+P.rows())%P.rows();
-        int next = (i+1)%P.rows();
-        double a[2] = {P(prev,0),P(prev,1)};
-        double b[2] = {P(i,0),P(i,1)};
-        double c[2] = {P(next,0),P(next,1)};
-        short r = igl::copyleft::cgal::orient2D(a,b,c);
-        if(r < 0)
-            return false;
-    }
-    return true;
 }
 
 void drop_colinear(
@@ -323,32 +305,14 @@ void subdivide_polygon(
 
 void simplify_triangulation(
 	const Eigen::MatrixXd& V_i,
-    const Eigen::MatrixXd& C,
-    const Eigen::VectorXi& cp,
-    const Eigen::MatrixXi& E,
 	const std::vector<std::vector<int>>& L_i,
-    const std::string& flags,
 	Eigen::MatrixXd& V,
 	Eigen::MatrixXi& F
 ){
 	std::vector<std::vector<int>> L;
 	V = V_i;
 	F.resize(0,0);
-	std::map<std::pair<int,int>, std::vector<int>> Em;
-    std::set<std::pair<int,int>> cnnt; // gather connectivity info from E
-    std::vector<bool> embed(C.rows(),false); // make sure every C is embeded once
-
-    for(int i=0;i<E.rows();i++){
-        cnnt.insert(std::make_pair(E(i,0),E(i,1)));
-        cnnt.insert(std::make_pair(E(i,1),E(i,0)));
-    }
-
-    // append C to V
-    if(C.rows()>0){
-        V.conservativeResize(V.rows()+C.rows(),Eigen::NoChange);
-        V.bottomRows(C.rows())<<C;
-    }
-
+	std::map<std::pair<int,int>, std::vector<int>> E;
 	// calculate the average edge length
 	double avl = 0.0f;
 	for(int i=0;i<V_i.rows();i++){
@@ -356,73 +320,6 @@ void simplify_triangulation(
 	}
 	avl /= V_i.rows();
 	// traverse L, split the internal edges
-    std::vector<Eigen::MatrixXd> P_set;
-    for(int i=0;i<L_i.size();i++){
-        if(L_i[i].size()==0) continue;
-        Eigen::MatrixXd LLP;
-        LLP.resize(L_i[i].size(),2);
-        for(int j=0;j<LLP.rows();j++){
-            LLP.row(j)<<V.row(L_i[i][j]);
-        }
-        P_set.push_back(LLP);
-    }
-    auto count_split = [&](const std::vector<int>& L, int i, std::vector<std::pair<double,double>>& Vc){
-        int a = L[i];
-        int b = L[(i+1)%L.size()];
-        std::vector<int> ops = {a,b};
-        // compare left and right edge of [i,i+1]
-        double l = (V.row(a) - V.row(b)).norm();
-        int op1 = a;
-        int op2 = b;
-        double l1 = (V.row(L[(i+2)%L.size()]) - V.row(b)).norm();
-        double l2 = (V.row(L[(i-1+L.size())%L.size()]) - V.row(a)).norm();
-        while(l2/l<1.0){
-            double t1,t2;
-            if(!Vc.empty()){
-                t1 = (V(a,0)+Vc.back().first )/2;
-                t2 = (V(a,1)+Vc.back().second)/2;
-            }else{
-                t1 = (V(a,0)+V(b,0))/2;
-                t2 = (V(a,1)+V(b,1))/2;
-            }
-            Vc.push_back(std::make_pair(t1,t2));
-            Eigen::RowVectorXd t(2);
-            t<<t1,t2;
-            l = (V.row(a) - t).norm();
-        }
-        std::reverse(Vc.begin(),Vc.end());
-        Eigen::RowVectorXd p(2);
-        if(Vc.size()!=0){
-            p<<Vc.back().first,Vc.back().second;
-            l = (V.row(b) - p).norm();
-        }else{
-            l = (V.row(a) - V.row(b)).norm();
-        }
-        while(l1/l<1.0){
-            double t1,t2;
-            if(!Vc.empty()){
-                t1 = (V(b,0)+Vc.back().first )/2;
-                t2 = (V(b,1)+Vc.back().second)/2;
-            }else{
-                t1 = (V(a,0)+V(b,0))/2;
-                t2 = (V(a,1)+V(b,1))/2;
-            }
-            Vc.push_back(std::make_pair(t1,t2));
-            Eigen::RowVectorXd t(2);
-            t<<t1,t2;
-            l = (V.row(b) - t).norm();
-        }
-    };
-
-    std::map<std::pair<int,int>,std::pair<int,int>> EP; // edge to polygon list map
-    for(int i=0;i<L_i.size();i++){
-        for(int j=0;j<L_i[i].size();j++){
-            int a = L_i[i][j];
-			int b = L_i[i][(j+1)%L_i[i].size()];
-            EP[std::make_pair(a,b)] = std::make_pair(i,j);
-        }
-    }
-    std::vector<std::vector<int>> L_aux(L_i.size());
 	for(int i=0;i<L_i.size();i++){
 		if(!L_i[i].empty()){
 			L.resize(L.size()+1); // conservativeResize
@@ -430,113 +327,51 @@ void simplify_triangulation(
 		for(int j=0;j<L_i[i].size();j++){
 			int a = L_i[i][j];
 			int b = L_i[i][(j+1)%L_i[i].size()];
-			L_aux[i].push_back(a);
-			if(Em.find(std::make_pair(b,a))!=Em.end()){
-				auto tv = Em[std::make_pair(b,a)]; // tmp vec
+			L.back().push_back(a);
+			if(E.find(std::make_pair(b,a))!=E.end()){
+				auto tv = E[std::make_pair(b,a)]; // tmp vec
 				std::reverse(tv.begin(),tv.end());
-				Em[std::make_pair(a,b)] = tv;
-				L_aux[i].insert(L_aux[i].end(),tv.begin(),tv.end());
+				E[std::make_pair(a,b)] = tv;
+				L.back().insert(L.back().end(),tv.begin(),tv.end());
 				continue;
 			}
+			int n = std::max((V.row(b)-V.row(a)).norm() / avl,1.0);
 			int vn = V.rows();
 			if(b-a!=1 && a-b!=V_i.rows()-1){
-                //#define REFINE_EDGE
-                #ifndef REFINE_EDGE
-                int n = std::max((V.row(b)-V.row(a)).norm() / avl,1.0);
-                V.conservativeResize(V.rows()+n-1,2);
-                for(int k=0;k<n-1;k++){
+				V.conservativeResize(V.rows()+n-1,2);
+				// split to n edges
+				for(int k=0;k<n-1;k++){
 					V.row(vn+k)<<V.row(a) + (V.row(b)-V.row(a))*(k+1)/n;
-					Em[std::make_pair(a,b)].push_back(vn+k);
-					L_aux[i].push_back(vn+k);
+					E[std::make_pair(a,b)].push_back(vn+k);
+					L.back().push_back(vn+k);
 				}
-                #else
-                std::vector<std::pair<double,double>> Vc1,Vc2;
-                int i_ = EP[std::make_pair(b,a)].first;
-                int j_ = EP[std::make_pair(b,a)].second;
-                count_split(L_i[i], j ,Vc1);
-                count_split(L_i[i_],j_,Vc2);
-                bool use_dual = Vc1.size() < Vc2.size();
-                auto op = !use_dual ? Vc1 : Vc2;
-                
-                V.conservativeResize(V.rows()+op.size(),2);
-                if(use_dual) std::reverse(op.begin(),op.end());
-                for(int k=0;k<op.size();k++){
-                    V.row(vn+k) << op[k].first, op[k].second;
-                    Em[std::make_pair(a,b)].push_back(vn+k);
-                    L_aux[i].push_back(vn+k);
-                }
-                #endif
 			}
 		}
 	}
-    for(int i=0;i<L_aux.size();i++){
-        if(L_aux[i].empty()){
-            L_aux.erase(L_aux.begin()+i);
-            i--;
-        }
-    }
-    L = L_aux;
-
 	// triangulate subpolygons
 	Eigen::MatrixXd LP; // local polygon 
 	Eigen::MatrixXi LF; // local faces
 	Eigen::MatrixXd LV;
-
 	for(int i=0;i<L.size();i++){
 		LP.resize(L[i].size(),2);
-		std::unordered_set<int> LPi={-1}; // for those constraint points not in overlapping part
-        for(int j=0;j<LP.rows();j++){
+		for(int j=0;j<LP.rows();j++){
 			LP.row(j)<<V.row(L[i][j]);
-            LPi.insert(L[i][j]);
 		}
-        
 		//display(LP,0,LP.rows()-1);
-        Eigen::MatrixXi LE(LP.rows(),2);
+		Eigen::MatrixXi LE(LP.rows(),2);
 		LE<<Eigen::VectorXi::LinSpaced(LP.rows(),0,LP.rows()-1),
 			Eigen::VectorXi::LinSpaced(LP.rows(),1,LP.rows());
 		LE(LE.rows()-1,1) = 0;
-
-        // embed the extra internal points
-        Eigen::MatrixXd LP2 = LP;
-        std::vector<int> cin;
-        for(int j=0;j<C.rows();j++){
-            Eigen::RowVector2d q = C.row(j);
-            if(LPi.find(cp(j))!=LPi.end() && !embed[j] && point_in_poly(LP,q)){
-                LP2.conservativeResize(LP2.rows()+1,Eigen::NoChange);
-                LP2.bottomRows(1) << q;
-                cin.push_back(j+V_i.rows());
-                embed[j] = true;
-            }
-        }
-        // try to support edge constraints
-        for(int j=0;j<cin.size();j++){
-            for(int k=j+1;k<cin.size();k++){
-                auto pr = std::make_pair(cin[j],cin[k]);
-                if(cnnt.find(pr)!=cnnt.end()){
-                    LE.conservativeResize(LE.rows()+1,Eigen::NoChange);
-                    LE.bottomRows(1) << LP.rows()+j,LP.rows()+k;
-                }
-            }
-        }
-        // if(!is_simple_polygon(LP2)){
-        //     std::cout<<"not simple"<<std::endl;
-        //     display(LP2,0,LP2.rows()-1);
-        // }
-        //display(LP2,0,LP2.rows()-1);
-
-		igl::triangle::triangulate(LP2,LE,Eigen::MatrixXd(),"YQq33",LV,LF);
-
-		Eigen::MatrixXd nV = LV.bottomRows(LV.rows()-LP2.rows());
+		igl::triangle::triangulate(LP,LE,Eigen::MatrixXd(),"YQq33",LV,LF);		
+		Eigen::MatrixXd nV = LV.bottomRows(LV.rows()-LP.rows());
 		int n_o = V.rows();
 		V.conservativeResize(V.rows()+nV.rows(),2);
 		V.bottomRows(nV.rows())<<nV;
 		for(int f=0;f<LF.rows();f++){
 			for(int k=0;k<3;k++){
-				if(LF(f,k) >= LP2.rows())
-					LF(f,k) += (n_o-LP2.rows());
-                else if(LF(f,k) >= LP.rows())
-                    LF(f,k) = cin[LF(f,k)-LP.rows()];
-                else
+				if(LF(f,k) >= L[i].size())
+					LF(f,k) += (n_o-LP.rows());
+				else
 					LF(f,k) = L[i][LF(f,k)];
 			}
 		}
@@ -594,20 +429,12 @@ bool Shor_van_wyck(
         return true;
     }
     V = P;
-    //drop (-1,-1,-1) faces
-    auto Ft = F;
-    int nFt = 0;
-    for(int i=0;i<F.rows();i++){
-        if(F.row(i).sum()!=-3){
-            Ft.row(nFt++) = F.row(i);
-        }
-    }
-    Ft.conservativeResize(nFt,3);
-    F = Ft;
 	// [simplify mesh (subdivide into small polygons)]
 	std::vector<std::vector<int>> L;
 	subdivide_polygon(V,F,L);
+    
     // [refine each small polygon]
-    // TODO
+    Eigen::MatrixXd V0 = V;
+    simplify_triangulation(V0,L,V,F);
     return true;
 }
