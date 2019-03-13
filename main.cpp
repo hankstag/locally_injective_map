@@ -4,7 +4,7 @@
 #include <igl/boundary_loop.h>
 #include "argh.h"
 #include "shor.h"
-
+#include "is_simple_polygon.h"
 // void get_matching_from_model(
 //     const std::string model,
 //     Eigen::VectorXi& match
@@ -68,6 +68,7 @@ int main(int argc, char *argv[])
         std::cout<<"-uv: uv model"<<std::endl;
         exit(0);
     }
+    test_is_simple_polygon();
     int loop, threshold;
     bool extract_bd;
     std::string uv_model;

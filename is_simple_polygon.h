@@ -6,9 +6,7 @@
 #include <unordered_set>
 #include <set>
 
-template <typename DerivedV>
-bool is_simple_polygon(const Eigen::MatrixBase<DerivedV>& P);
-
-template bool is_simple_polygon<Eigen::Matrix<double, -1, -1, 0, -1, -1> >(Eigen::MatrixBase<Eigen::Matrix<double, -1, -1, 0, -1, -1> > const&);
+void test_is_simple_polygon();
+bool is_simple_polygon(const Eigen::MatrixXd& P);
 
 #endif

@@ -9,6 +9,13 @@
 #include <igl/copyleft/cgal/orient2D.h>
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
+#include "is_simple_polygon.h"
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Polygon_2.h>
+#include <iostream>
+typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+typedef K::Point_2 Point;
+typedef CGAL::Polygon_2<K> Polygon_2;
 
 using namespace std;
 
@@ -293,7 +300,12 @@ void subdivide_polygon(
 		
 		// if merged polygon is simple, drop edge he/rhe
 		// erase L[p2], add to L[p1]
+		// Polygon_2 poly_cgal;
+		// for(int i=0;i<poly.rows();i++){
+		// 	poly_cgal.push_back(Point(poly(i,0),poly(i,1)));
+		// }
 	    if(is_simple_polygon(poly)){
+		// if(poly_cgal.is_simple()){
 			H[he]=-1;
 			H[rhe]=-1;
 			G[p2] = p1; // p2 belongs to p1 now
