@@ -2,11 +2,13 @@
 #include "segments_intersect.h"
 #include <queue>
 #include <algorithm>
+#include <fstream>
 
 typedef std::pair<double,double> Point;
 typedef std::tuple<Point,Point,int> Segment;
 typedef std::tuple<Point,int,bool> Event; // (point, segment_id, enter/leave)
 struct Order{
+    // TODO: need to compare exactly
     bool operator() (const Segment& a, const Segment& b) const {
         return a < b;
     }
@@ -16,7 +18,7 @@ using SweepList = std::set<Segment,Order>;
 void plot_segment(
     const Segment& seg
 ){
-    std::cout<<"("<<std::get<0>(seg).first<<","<<std::get<0>(seg).second<<")"<<" - ("<<std::get<1>(seg).first<<","<<std::get<1>(seg).second<<")\n";
+    std::cout<<std::get<2>(seg)<<"("<<std::get<0>(seg).first<<","<<std::get<0>(seg).second<<")"<<" - ("<<std::get<1>(seg).first<<","<<std::get<1>(seg).second<<")\n";
 }
 
 void plot_current_sl(
@@ -31,18 +33,29 @@ void plot_current_sl(
 }
 
 // check whether Segment a and Segment b intersect each other
-bool is_segment_intersect(
+bool disjoint_segment_intersect(
     Segment s1,
-    Segment s2
+    Segment s2,
+    int n
 ){
     std::cout<<"test test"<<std::endl;
     plot_segment(s1);
     plot_segment(s2);
+    int id1 = std::get<2>(s1);
+    int id2 = std::get<2>(s2);
+    if(std::abs(id1-id2)==1 || std::abs(id1-id2)==n-1){
+        // if s1 and s2 are exactly the same
+        if(std::get<0>(s1) == std::get<0>(s2) &&
+           std::get<1>(s1) == std::get<1>(s2))
+            return true;
+        else
+            return false;
+    }
     double a[2] = {std::get<0>(s1).first,std::get<0>(s1).second};
     double b[2] = {std::get<1>(s1).first,std::get<1>(s1).second};
     double c[2] = {std::get<0>(s2).first,std::get<0>(s2).second};
     double d[2] = {std::get<1>(s2).first,std::get<1>(s2).second};
-    bool x = segment_segment_intersect(a,b,c,d,1e-16);
+    bool x = segment_segment_intersect(a,b,c,d,0.0);
     std::cout<<"intersect? "<<x<<std::endl;
     return x;
 }
@@ -59,18 +72,18 @@ bool is_simple_polygon(const Eigen::MatrixXd& P){
         Point p1 = Point(P(i,  0),P(i  ,1));
         Point p2 = Point(P(i_1,0),P(i_1,1));
         if(p1>p2)
-            segments.push_back(Segment(p2,p1,segments.size()-1));
+            segments.push_back(Segment(p2,p1,segments.size()));
         else 
-            segments.push_back(Segment(p1,p2,segments.size()-1));
+            segments.push_back(Segment(p1,p2,segments.size()));
     }
 
     // build event list (sort segments)
     auto later = [](const Event& a, const Event& b){
         return a > b;
     };
-    // for(Segment seg: segments){
-    //     std::cout<<"("<<std::get<0>(seg).first<<","<<std::get<0>(seg).second<<")"<<" - ("<<std::get<1>(seg).first<<","<<seg.std::get<1>(seg).std::get<1>(seg)<<")\n";
-    // }
+    for(Segment seg: segments){
+        std::cout<<std::get<2>(seg)<<"("<<std::get<0>(seg).first<<","<<std::get<0>(seg).second<<")"<<" - ("<<std::get<1>(seg).first<<","<<std::get<1>(seg).second<<")\n";
+    }
 
     std::priority_queue<Event,std::vector<Event>,decltype(later)> Q(later);
     std::cout<<"#segments "<<segments.size()<<std::endl;
@@ -79,6 +92,7 @@ bool is_simple_polygon(const Eigen::MatrixXd& P){
         Q.push(Event(std::get<1>(segments[i]),i,false));
     }
     SweepList sl;
+    int n = segments.size();
     // start line sweeping
     while(!Q.empty()){
         Event evt = Q.top();
@@ -92,19 +106,21 @@ bool is_simple_polygon(const Eigen::MatrixXd& P){
         bool is_enter = std::get<2>(evt);
         int seg_id = std::get<2>(seg);
         if(is_enter){
+            plot_current_sl(sl);
             sl.insert(seg);
-            auto pos = sl.find(seg);
-            auto prev = std::prev(pos);
+            plot_current_sl(sl);
+            auto pos = sl.find(seg);                
+            auto prev = (pos == sl.begin()) ? pos: std::prev(pos);
             auto next = std::next(pos);
-            if((pos  != sl.begin() && is_segment_intersect(*pos,*prev)) ||
-               (next != sl.end()   && is_segment_intersect(*pos,*next)))
+            if((pos  != sl.begin() && disjoint_segment_intersect(*pos,*prev,n)) ||
+               (next != sl.end()   && disjoint_segment_intersect(*pos,*next,n)))
                 return false;
         }else{
             plot_current_sl(sl);
             auto pos = sl.find(seg);
-            auto prev = std::prev(pos);
-            auto next = std::next(pos);
-            if(pos != sl.begin() && next != sl.end() && is_segment_intersect(*prev,*next))
+            auto prev = (pos == sl.begin()) ? pos : std::prev(pos);
+            auto next = (pos == sl.end()) ? pos : std::next(pos);
+            if(pos != sl.begin() && next != sl.end() && disjoint_segment_intersect(*prev,*next,n))
                 return false;
             sl.erase(seg);
         }
@@ -112,9 +128,26 @@ bool is_simple_polygon(const Eigen::MatrixXd& P){
     return true;
 }
 
+void load_curve(
+    Eigen::MatrixXd& polygon,
+    const std::string& fileID
+){
+    std::ifstream myfile;
+    myfile.open(fileID);
+    polygon.resize(3000,2);
+    double x,y;
+    int i = 0;
+    while (myfile >> x){
+        myfile >> y;
+        polygon.row(i++) << x,y;
+    }
+    polygon.conservativeResize(i,2);
+}
+
 void test_is_simple_polygon(){
-    Eigen::MatrixXd P(6,2);
-    P<<0,0,0,1,0,3,0,5,0,8,1,9;
+    Eigen::MatrixXd P(4,2);
+    P<<0.875,-10.875,1,-11,1.125,-11.125,3,-9; 
+    load_curve(P,"complex_polygon4");
     std::cout<<"check simple: "<<is_simple_polygon(P)<<std::endl;
     exit(0);
 }

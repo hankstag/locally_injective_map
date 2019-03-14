@@ -241,6 +241,29 @@ void add_colinear(
 	F = tF;
 }
 
+void display(const Eigen::MatrixXd& P, int s, int t){
+	Eigen::MatrixXi edges;
+	// s to t
+	int ps = s < t ? t - s + 1 : t + P.rows() - s + 1;
+	Eigen::MatrixXd bp(ps,3);
+	for (int i = 0; i < ps; i++)
+	{
+		bp(i,0)=P(i,0);
+		bp(i,1)=P(i,1);
+		bp(i,2)=0;
+	}
+	edges.resize(ps,2);
+	for(int i=0;i<ps;i++){
+		edges(i,0)=i;
+		edges(i,1)=(i+1)%ps;
+	}
+	igl::opengl::glfw::Viewer viewer;
+	viewer.data().clear();
+	viewer.data().set_edges(bp,edges,Eigen::RowVector3d(0,0,0));
+	viewer.core.align_camera_center(bp);
+	viewer.launch();
+}
+
 void subdivide_polygon(
 	const Eigen::MatrixXd& V,
 	const Eigen::MatrixXi& F,
@@ -303,8 +326,13 @@ void subdivide_polygon(
 		for(int i=0;i<poly.rows();i++){
 			poly_cgal.push_back(Point(poly(i,0),poly(i,1)));
 		}
-	    //if(is_simple_polygon(poly)){
-		if(poly_cgal.is_simple()){
+	    if(is_simple_polygon(poly)){
+            bool k = poly_cgal.is_simple();
+            if(!k){
+                std::cout<<poly<<std::endl;
+                exit(0);
+            }
+		//if(poly_cgal.is_simple()){
 			H[he]=-1;
 			H[rhe]=-1;
 			G[p2] = p1; // p2 belongs to p1 now
@@ -313,6 +341,8 @@ void subdivide_polygon(
 		}
 	}
 }
+
+
 
 void simplify_triangulation(
 	const Eigen::MatrixXd& V_i,
@@ -368,7 +398,7 @@ void simplify_triangulation(
 		for(int j=0;j<LP.rows();j++){
 			LP.row(j)<<V.row(L[i][j]);
 		}
-		//display(LP,0,LP.rows()-1);
+		display(LP,0,LP.rows()-1);
 		Eigen::MatrixXi LE(LP.rows(),2);
 		LE<<Eigen::VectorXi::LinSpaced(LP.rows(),0,LP.rows()-1),
 			Eigen::VectorXi::LinSpaced(LP.rows(),1,LP.rows());
