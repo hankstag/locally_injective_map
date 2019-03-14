@@ -23,10 +23,10 @@ bool on_segment(
 
     // if segment is open, meaning there is a neighborhood (-eps,eps)
     // s.t. if p landing inside the neighborhood, it's considered not on segment
-    return  ((p[0]-std::min(m[0],n[0])>= eps) &&
-             (p[0]-std::max(m[0],n[0])<=-eps) &&
-             (p[1]-std::min(m[1],n[1])>= eps) &&
-             (p[1]-std::max(m[1],n[1])<=-eps));
+    return ((p[0] >= std::min(m[0],n[0])-eps) &&
+            (p[0] <= std::max(m[0],n[0])+eps) &&
+            (p[1] >= std::min(m[1],n[1])-eps) &&
+            (p[1] <= std::max(m[1],n[1])+eps));
 }
 
 template <typename Scalar>
@@ -77,15 +77,15 @@ bool segment_segment_intersect(
 
 }
 
-// void test_segment_segment_intersect(){
-//     Eigen::RowVector2d a(0,0);
-//     Eigen::RowVector2d b(1.1,0);
-//     Eigen::RowVector2d c(1.1,0);
-//     Eigen::RowVector2d d(2.2,0);
-//     std::cout<<std::setprecision(20)<<b<<std::endl;
-//     std::cout<<std::setprecision(20)<<c<<std::endl;
-//     std::cout<<"intersect?: "<<segment_segment_intersect(a,b,c,d,0)<<std::endl;
-// }
+void test_segment_segment_intersect(){
+    Eigen::RowVector2d a(0,0);
+    Eigen::RowVector2d b(1,9);
+    Eigen::RowVector2d c(0,0);
+    Eigen::RowVector2d d(0,1);
+    std::cout<<std::setprecision(20)<<b<<std::endl;
+    std::cout<<std::setprecision(20)<<c<<std::endl;
+    std::cout<<"intersect?: "<<segment_segment_intersect(a,b,c,d,0)<<std::endl;
+}
 
 template short orientation<Eigen::Matrix<double, 3, 2, 0, 3, 2> >(Eigen::MatrixBase<Eigen::Matrix<double, 3, 2, 0, 3, 2> > const&);
 template short orientation<Eigen::Matrix<double, -1, -1, 0, -1, -1> >(Eigen::MatrixBase<Eigen::Matrix<double, -1, -1, 0, -1, -1> > const&);
