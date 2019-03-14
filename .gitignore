@@ -34,4 +34,6 @@
 libigl/*
 build/*
 debug/*
+data/*
+polygons
 .vscode/*
