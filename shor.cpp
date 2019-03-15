@@ -74,15 +74,54 @@ void add_triangle(
 	F.bottomRows(1) << i,k,j;
 	add_triangle(F,i,k,K,Q);
 	add_triangle(F,k,j,K,Q);
-};
+}
+
+void display(const Eigen::MatrixXd& P, int s, int t, std::vector<int>& kt){
+	Eigen::MatrixXi edges;
+	// s to t
+	int ps = s < t ? t - s + 1 : t + P.rows() - s + 1;
+	Eigen::MatrixXd bp(ps,3);
+	for (int i = 0; i < ps; i++)
+	{
+		bp(i,0)=P(i,0);
+		bp(i,1)=P(i,1);
+		bp(i,2)=0;
+	}
+	edges.resize(ps,2);
+	for(int i=0;i<ps;i++){
+		edges(i,0)=i;
+		edges(i,1)=(i+1)%ps;
+	}
+	igl::opengl::glfw::Viewer viewer;
+    igl::opengl::glfw::imgui::ImGuiMenu menu;
+	viewer.data().clear();
+    viewer.plugins.push_back(&menu);
+	viewer.data().set_edges(bp,edges,Eigen::RowVector3d(0,0,0));
+    for(int i=0;i<ps;i++){
+        viewer.data().add_label(P.row(i),std::to_string(i));
+    }
+    for(int i: kt){
+        viewer.data().add_points(P.row(i),Eigen::RowVector3d(1,0,0));
+    }
+	viewer.core.align_camera_center(bp);
+	viewer.launch();
+}
 
 bool weakly_self_overlapping(
 	const Eigen::MatrixXd& P,
-	const Eigen::VectorXi& R,
+	const Eigen::VectorXi& R_i,
 	Eigen::MatrixXi& F
 ){
+    Eigen::VectorXi R = R_i;
+    // std::vector<int> trick = {11,26,32,36,42,176,186,207,213};
+    // R.setZero();
+    // display(P,0,P.rows()-1,trick);
+    // for(int i: trick)
+    //     R(i) = 1;
+    Eigen::VectorXi eval_R;
+    eval_R.setZero(R.rows());
     std::cout<<"weakly self overlapping test"<<std::endl;
-	auto add_to_table = [](
+	auto add_to_table = [&eval_R](
 		const Eigen::MatrixXd& P,
 		const Eigen::VectorXi& R,
 		std::vector<std::vector<Angle>>& FA,
@@ -106,8 +145,12 @@ bool weakly_self_overlapping(
 		if((Fr.r <= R(i)) && (La.r <= R(j)) && (k1+k2+k3).r == R(k)){
 			FA[i][j] = Fr;
 			LA[i][j] = La;
+            eval_R(k) = R(k);
 			return true;
-		}else 
+		}else if((Fr.r <= R(i)) && (La.r <= R(j)) && (k1+k2+k3).r < R(k)){
+            eval_R(k) = std::max(eval_R(k),(k1+k2+k3).r);
+            return false;
+        }else
 			return false;
 	};
 
@@ -146,7 +189,11 @@ bool weakly_self_overlapping(
 			}
 		}
 	}
-    std::cout<<"test done"<<std::endl;    
+    std::cout<<"test done"<<std::endl; 
+    for(int i=0;i<eval_R.rows();i++){
+        if(eval_R(i))
+            std::cout<<i<<","<<eval_R(i)<<std::endl;
+    }
 	if(h==-1) return false;
 	add_triangle(F,h,(h-1+N)%N,K,Q);
 	return true;

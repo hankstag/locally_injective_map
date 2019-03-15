@@ -11,6 +11,7 @@
 
 #include "util.h"
 
+void display(const Eigen::MatrixXd& P, int s, int t, std::vector<int>& kt);
 struct Angle
 {
 	Eigen::RowVector2d w1,v,w2;
