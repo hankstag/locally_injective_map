@@ -1,105 +1,92 @@
+#include <sstream>
 #include <igl/opengl/glfw/Viewer.h>
-#include <igl/harmonic.h>
-#include <igl/euler_characteristic.h>
 #include <igl/boundary_loop.h>
+#include <igl/readOBJ.h>
+#include <igl/readOFF.h>
+#include <igl/slice.h>
 #include "argh.h"
+
 #include "shor.h"
+#include "state.h"
 #include "is_simple_polygon.h"
-// void get_matching_from_model(
-//     const std::string model,
-//     Eigen::VectorXi& match
-// ){
-//     Eigen::MatrixXd CN,V,uv;
-//     Eigen::MatrixXi Fuv,FN,F;
-//     igl::readOBJ(model,V,uv,CN,F,Fuv,FN);
-
-//     // copy face from uv
-//     std::vector<std::vector<int>> D1,D2;
-//     igl::boundary_loop(F  ,D1);
-//     igl::boundary_loop(Fuv,D2);
-//     std::cout<<"model size: #F("<<F.rows()<<"), #V("<<V.rows()<<")"<<std::endl;
-//     std::cout<<"source #BD("<<D1.size()<<")"<<std::endl;
-//     std::cout<<"target #BD("<<D2.size()<<")"<<std::endl;
-//     #define USEUV
-//     #ifdef USEUV
-//     Eigen::MatrixXd nV(uv.rows(),3);
-//     for(int i=0;i<F.rows();i++){
-//         nV.row(Fuv(i,0)) << V.row(F(i,0));
-//         nV.row(Fuv(i,1)) << V.row(F(i,1));
-//         nV.row(Fuv(i,2)) << V.row(F(i,2));
-//     }
-//     F = Fuv;
-//     V = nV;
-//     #endif
-//     //fill_in_holes(V,F);
-//     auto D = D2[0];
-//     Eigen::MatrixXd P;
-//     P.resize(D.size(),2);
-//     match.resize(P.rows());
-//     for(int i=0;i<P.rows();i++){
-//         P.row(i)<<uv.row(D[i]);
-//         match(i) = D[i];
-//     }
-// }
-
-int test_flip(
-    const Eigen::MatrixXd& V, 
-    const Eigen::MatrixXi& F
-){
-    bool flipped = false;
-    int count = 0;
-    for(int i=0;i<F.rows();i++){
-        if(F.row(i).sum()==0) continue;
-        Eigen::Matrix<double,3,2> tri;
-        tri<<V.row(F(i,0)),V.row(F(i,1)),V.row(F(i,2));
-        if(orientation(tri)<=0) {
-            count++;
-            flipped = true;
-        }
+void display(const Eigen::MatrixXd& P, int s, int t, std::vector<int>& kt){
+	Eigen::MatrixXi edges;
+	// s to t
+	int ps = s < t ? t - s + 1 : t + P.rows() - s + 1;
+	Eigen::MatrixXd bp(ps,3);
+	for (int i = 0; i < ps; i++)
+	{
+		bp(i,0)=P(i,0);
+		bp(i,1)=P(i,1);
+		bp(i,2)=0;
+	}
+	edges.resize(ps,2);
+	for(int i=0;i<ps;i++){
+		edges(i,0)=i;
+		edges(i,1)=(i+1)%ps;
+	}
+	igl::opengl::glfw::Viewer viewer;
+	viewer.data().clear();
+	viewer.data().set_edges(bp,edges,Eigen::RowVector3d(0,0,0));
+    for(int i: kt){
+        viewer.data().add_points(P.row(i),Eigen::RowVector3d(1,0,0));
     }
-    return count;
+	viewer.core.align_camera_center(bp);
+	viewer.launch();
 }
-
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]){
     auto cmdl = argh::parser(argc, argv, argh::parser::PREFER_PARAM_FOR_UNREG_OPTION);
     if(cmdl[{"-h","-help"}]){
-        std::cout<<"Usage: ./tutte_test -options"<<std::endl;
-        std::cout<<"-uv: uv model"<<std::endl;
+        std::cout<<"Usage: ./param_bin -options"<<std::endl;
+        std::cout<<"-in: input disk model"<<std::endl;
+        std::cout<<"-poly: target polygon"<<std::endl;
+        std::cout<<"-r: rotation index info"<<std::endl;
+        std::cout<<"-out: output path"<<std::endl;
         exit(0);
     }
     // test_segment_segment_intersect();
-    test_is_simple_polygon();
-    // Eigen::RowVector2d a(0,0);
-    // Eigen::RowVector2d b(0,1.1);
-    // Eigen::RowVector2d c(0,1.1);
-    // Eigen::RowVector2d d(0,3.3);
-    // Eigen::RowVector2d _q;
-    // if(segment_segment_intersect(a,b,c,d,_q,true)){
-    //     std::cout<<_q<<std::endl;
-    // }
+    // test_is_simple_polygon();
+    
     int loop, threshold;
     bool extract_bd;
-    std::string uv_model;
-    cmdl("-uv") >> uv_model;
-    Eigen::MatrixXd V;
-    Eigen::MatrixXd uv;
-    Eigen::MatrixXi F;
-    Eigen::MatrixXd CN;
-    Eigen::MatrixXi Fuv,FN;
-    igl::readOBJ(uv_model,V,uv,CN,F,Fuv,FN);
-    Eigen::VectorXi bd,R,cp;
-    Eigen::MatrixXd P,C;
-    Eigen::MatrixXi E;
-    std::vector<std::vector<int>> L;
-    igl::boundary_loop(F,bd);
-    V.conservativeResize(V.rows(),2);
-    igl::slice(V,bd,1,P);
-    set_rotation_index(V,F,R);
-    bool x = test_flip(V, F);
-    std::cout<<"flipped "<<x<<std::endl;
+    std::string model_name, ri_file, poly_file;
+    cmdl("-in") >> model_name;
+    cmdl("-r") >> ri_file;
+    cmdl("-poly") >> poly_file;
+
+    Eigen::MatrixXd V,uv;
+    Eigen::MatrixXi F,Fuv;
+    Eigen::MatrixXd P;
+    Eigen::VectorXi R,match;
+
+    State state = State();
+    // assume it to be disk
+    state.load_mesh(model_name,V,F,uv,Fuv);
+    state.load_polygon(poly_file,P);
+    
+    std::map<int,int> Rmap;
+    state.load_rotation_index(ri_file,Rmap);
+    // igl::boundary_loop(Fuv,match);
+    // // V.conservativeResize(V.rows(),2);
+    // igl::slice(uv,match,1,P);
+    // // std::cout<<std::setprecision(17)<<P<<std::endl;
+    // std::ofstream myfile;
+    // myfile.open("genus3_poly_from_input",std::ios_base::app);
+    // for(int i=0;i<P.rows();i++){
+    //     myfile<<std::setprecision(17)<<P(i,0)<<" "<<P(i,1)<<std::endl;
+    // }
+    // myfile.close();
+    // R.setZero(match.rows());
+    R.setZero(P.rows());
+    for(int i=0;i<P.rows();i++){
+        R(i) = Rmap[i];
+    }
+    std::vector<int> kt;
+    for(int i=0;i<R.rows();i++)
+        if(R(i))
+            kt.push_back(i);
+    display(P,0,P.rows()-1,kt);
     bool succ = Shor_van_wyck(P,R,"",V,F,true);
-    //bool succ = Shor_van_wyck(P,R,V,F);
     if(succ)
         std::cout<<"succ"<<std::endl;
     else
