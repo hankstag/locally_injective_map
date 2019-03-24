@@ -13,6 +13,9 @@
 #include "is_simple_polygon.h"
 
 int main(int argc, char *argv[]){
+    //test_shor();
+    // test_angles();
+    // exit(0);
     auto cmdl = argh::parser(argc, argv, argh::parser::PREFER_PARAM_FOR_UNREG_OPTION);
     if(cmdl[{"-h","-help"}]){
         std::cout<<"Usage: ./param_bin -options"<<std::endl;
@@ -52,39 +55,47 @@ int main(int argc, char *argv[]){
     std::map<int,int> Rmap;
     state.load_rotation_index(ri_file,Rmap);
     igl::boundary_loop(Fuv,match);
+    uv2.conservativeResize(uv2.rows(),2);
     for(int i=0;i<match.rows();i++){
         //uv2.row(bd(i))<<uv.row(match((i+8)%match.rows()));
-        uv2.row(bd((i+8)%bd.rows()))<<uv.row(match(i));
+        //uv2.row(bd((i+8)%bd.rows()))<<uv.row(match(i));
     }
-    R.setZero(P.rows());
-    uv2.conservativeResize(uv2.rows(),2);
+    igl::opengl::glfw::Viewer vr;
+    igl::opengl::glfw::imgui::ImGuiMenu menu;
+    vr.plugins.push_back(&menu);
+    vr.data().set_mesh(uv2,Fuv2);
+    static int pos = 0;
+    menu.callback_draw_viewer_menu = [&](){
+        // Add new group
+        menu.draw_viewer_menu();
+        if(ImGui::CollapsingHeader("polygon", ImGuiTreeNodeFlags_DefaultOpen)){
+            if (ImGui::InputInt("vid", &pos)){
+                ;
+            }
+            if (ImGui::Button("display", ImVec2(-1,0))){
+                vr.data().clear();
+                vr.data().set_mesh(uv2,Fuv2);
+                vr.data().add_points(uv2.row(pos),Eigen::RowVector3d(1,0,0));
+            }
+        }
+    };
+    vr.launch();
+    R.setZero(match.rows());
     set_rotation_index(uv2,Fuv2,R);
-    R(1270) = 0;
-    // igl::opengl::glfw::Viewer vr2;
-    // vr2.data().set_mesh(uv2,Fuv2);
-    // vr2.launch();
-    // // V.conservativeResize(V.rows(),2);
-    // igl::slice(uv,match,1,P);
-    // // std::cout<<std::setprecision(17)<<P<<std::endl;
-    // std::ofstream myfile;
-    // myfile.open("genus3_poly_from_input",std::ios_base::app);
-    // for(int i=0;i<P.rows();i++){
-    //     myfile<<std::setprecision(17)<<P(i,0)<<" "<<P(i,1)<<std::endl;
-    // }
     // myfile.close();
     // R.setZero(match.rows());
     // R.setZero(P.rows());
     // for(int i=0;i<P.rows();i++){
     //     R(i) = Rmap[i];
     // }
+    //R(1270)=0;
     igl::slice(uv2,bd,1,P);
     std::vector<int> kt;
     for(int i=0;i<R.rows();i++)
         if(R(i))
             kt.push_back(i);
-    std::cout<<std::setprecision(17)<<P<<std::endl;
+    //std::cout<<std::setprecision(17)<<P<<std::endl;
     display(P,0,P.rows()-1,kt);
-    std::cout<<P.rows()<<":"<<R.rows()<<std::endl;
     bool succ = Shor_van_wyck(P,R,"",V,F,true);
     if(succ)
         std::cout<<"succ"<<std::endl;

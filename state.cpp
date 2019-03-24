@@ -9,6 +9,10 @@ void State::load_polygon(
 ){
     std::ifstream myfile;
     myfile.open(fileID);
+    if (!myfile.is_open()){
+        std::cout << "Could not open file: " << fileID << std::endl;
+        return;
+    }
     double x,y;
     std::vector<std::complex<double>> polygon_vec;
     while (myfile >> x){

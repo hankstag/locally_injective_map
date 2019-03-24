@@ -18,47 +18,27 @@ typedef CGAL::Polygon_2<K> Polygon_2;
 
 using namespace std;
 
-// set rotation index from initial parametrization
 void set_rotation_index(
     const Eigen::MatrixXd& uv,
     const Eigen::MatrixXi& F, 
     Eigen::VectorXi& R
 ){
-    auto get_angle = [&](
-        int v,
-        int f
-    ){
-        double angle = -1.0f;
-        for(int i=0;i<3;i++){
-            if(F(f,i)==v){
-                Eigen::Vector2d a = uv.row(F(f,(i+2)%3));
-                Eigen::Vector2d b = uv.row(v);
-                Eigen::Vector2d c = uv.row(F(f,(i+1)%3));
-                auto bc = c - b;
-                auto ba = a - b;
-                angle = std::acos(bc.dot(ba)/(bc.norm()*ba.norm()));
-                break;
-            }
+    Eigen::VectorXi bd;
+    igl::boundary_loop(F,bd);
+    std::vector<std::vector<int>> A;
+    igl::adjacency_list(F,A,true);
+    // for every boundary vertex, update its rotation index
+    for(int i=0;i<bd.rows();i++){
+        int v = bd(i);
+        Angle sum = Angle();
+        std::reverse(A[v].begin(),A[v].end());
+        for(int j=0;j<A[v].size()-1;j++){
+            int id = A[v][j];
+            int id_1 = A[v][j+1];
+            Angle I(uv.row(id),uv.row(v),uv.row(id_1)); // w1, v, w2
+            sum = (j==0)? I: sum+I;
         }
-        return angle;
-    };
-    using namespace std;
-    Eigen::VectorXi B;
-    igl::boundary_loop(F,B);
-    R.setZero(B.rows());
-    vector<vector<int>> M,MI;
-    igl::vertex_triangle_adjacency(uv,F,M,MI);
-    for(int i=0;i<B.rows();i++){
-        int v = B(i);
-        double sum = 0;
-        for(int f: M[v]){
-            sum += get_angle(v,f);
-        }
-        int ri = static_cast<int>(std::floor(sum / igl::PI / 2));
-        if(ri>0){
-            std::cout<<i<<","<<sum*180/igl::PI<<std::endl;
-            R(i) = ri;
-        }
+        R(i) = sum.r;
     }
 }
 
@@ -109,19 +89,11 @@ void display(const Eigen::MatrixXd& P, int s, int t, std::vector<int>& kt){
 
 bool weakly_self_overlapping(
 	const Eigen::MatrixXd& P,
-	const Eigen::VectorXi& R_i,
+	const Eigen::VectorXi& R,
 	Eigen::MatrixXi& F
 ){
-    Eigen::VectorXi R = R_i;
-    // std::vector<int> trick = {11,26,32,36,42,176,186,207,213};
-    // R.setZero();
-    // display(P,0,P.rows()-1,trick);
-    // for(int i: trick)
-    //     R(i) = 1;
-    Eigen::VectorXi eval_R;
-    eval_R.setZero(R.rows());
     std::cout<<"weakly self overlapping test"<<std::endl;
-	auto add_to_table = [&eval_R](
+	auto add_to_table = [](
 		const Eigen::MatrixXd& P,
 		const Eigen::VectorXi& R,
 		std::vector<std::vector<Angle>>& FA,
@@ -141,16 +113,11 @@ bool weakly_self_overlapping(
 		Angle k3 = FA[k][j];
 		Angle Fr = I + FA[i][k];
 		Angle La = LA[k][j] + J;
-
 		if((Fr.r <= R(i)) && (La.r <= R(j)) && (k1+k2+k3).r == R(k)){
 			FA[i][j] = Fr;
 			LA[i][j] = La;
-            eval_R(k) = R(k);
 			return true;
-		}else if((Fr.r <= R(i)) && (La.r <= R(j)) && (k1+k2+k3).r < R(k)){
-            eval_R(k) = std::max(eval_R(k),(k1+k2+k3).r);
-            return false;
-        }else
+		}else
 			return false;
 	};
 
@@ -190,11 +157,6 @@ bool weakly_self_overlapping(
 		}
 	}
     std::cout<<"test done"<<std::endl; 
-    for(int i=0;i<eval_R.rows();i++){
-        if(eval_R(i))
-            std::cout<<i<<","<<eval_R(i)<<std::endl;
-    }
-	if(h==-1) return false;
 	add_triangle(F,h,(h-1+N)%N,K,Q);
 	return true;
 }
@@ -503,3 +465,106 @@ bool Shor_van_wyck(
     simplify_triangulation(V0,L,V,F);
     return true;
 }
+
+#ifdef DEBUG_SHOR
+void debug_shor(
+    const Eigen::MatrixXd& poly,
+    std::vector<std::vector<int>>& Q,
+    const Eigen::VectorXi& R,
+    std::vector<std::vector<Angle>>& FA,
+	std::vector<std::vector<Angle>>& LA
+){
+    Eigen::MatrixXd V,uv,Px;
+    Eigen::MatrixXi F;
+    Eigen::VectorXi Tx,Rx;
+    //load_model("genus3_input.obj",V,uv,F,Px,Rx,Tx);
+    igl::opengl::glfw::Viewer v;
+    igl::opengl::glfw::imgui::ImGuiMenu menu;
+    v.plugins.push_back(&menu);
+    static int begin = 0, end = poly.rows();
+    // Add content to the default menu window
+    auto set_viewer_data = [&](){
+        v.data().clear();
+        if(end<begin) end += poly.rows();
+        for(int i=begin;i<end;i++){
+            v.data().add_edges(poly.row(i%poly.rows()),poly.row((i+1)%poly.rows()),Eigen::RowVector3d(0,0,0));
+            if(R(i%poly.rows()) == 1)
+                v.data().add_points(poly.row(i%poly.rows()),Eigen::RowVector3d(1,0,0));
+            v.data().add_label(poly.row(i%poly.rows()),std::to_string(i%poly.rows()));
+        }
+        v.data().add_edges(poly.row(end%poly.rows()),poly.row(begin%poly.rows()),Eigen::RowVector3d(1,0,0));
+        v.data().add_label(poly.row(end%poly.rows()),std::to_string(end%poly.rows()));
+        if(R(end%poly.rows())==1)
+            v.data().add_points(poly.row(end%poly.rows()),Eigen::RowVector3d(1,0,0));
+        v.core.align_camera_center(poly);
+        v.data().show_vertid = true;
+    };
+    auto show_triangle = [&](int i, int j, int k){
+        v.data().clear();
+        v.data().add_edges(poly.row(i),poly.row(j),Eigen::RowVector3d(0,0,0));
+        v.data().add_edges(poly.row(j),poly.row(k),Eigen::RowVector3d(0,0,0));
+        v.data().add_edges(poly.row(k),poly.row(i),Eigen::RowVector3d(0,0,0));
+        Eigen::MatrixXd T(3,2);
+        T<<poly.row(i),poly.row(j),poly.row(k);
+        std::cerr<<"orientation of "<<i<<","<<j<<","<<k<<" is "<<orientation(T)<<std::endl;
+    };
+    set_viewer_data();
+    static int ti,tj,tk;
+    static int pt;
+    menu.callback_draw_viewer_menu = [&](){
+        // Add new group
+        if(ImGui::CollapsingHeader("polygon", ImGuiTreeNodeFlags_DefaultOpen)){
+            if (ImGui::InputInt("begin", &begin)){
+                ;
+            }
+            if (ImGui::InputInt("end", &end)){
+                ;
+            }
+            if (ImGui::Button("update", ImVec2(-1,0))){
+                set_viewer_data();
+                std::cout<<"from "<<begin%poly.rows()<<" to "<<end%poly.rows()<<" is valid: "<<Q[begin%poly.rows()][end%poly.rows()]<<std::endl;
+                //std::cout<<"front angle "<<FA[begin%poly.rows()][end%poly.rows()].r<<std::endl;
+                //std::cout<<"later angle "<<LA[begin%poly.rows()][end%poly.rows()].r<<std::endl;
+            }
+            if (ImGui::Button("display", ImVec2(-1,0))){
+                std::cerr<<"front angle "<<FA[begin%poly.rows()][end%poly.rows()].r<<std::endl;
+                std::cerr<<"later angle "<<LA[begin%poly.rows()][end%poly.rows()].r<<std::endl;
+            }
+            if (ImGui::Button("show mesh", ImVec2(-1,0))){
+                //show_mesh();
+                v.data().show_vertid = false;
+                v.core.align_camera_center(V,F);
+            }
+        }
+        if(ImGui::CollapsingHeader("triangle", ImGuiTreeNodeFlags_DefaultOpen)){
+            if (ImGui::InputInt("i", &ti)){
+                ;
+            }
+            if (ImGui::InputInt("j", &tj)){
+                ;
+            }
+            if (ImGui::InputInt("k", &tk)){
+                ;
+            }
+            if (ImGui::Button("show", ImVec2(-1,0))){
+                show_triangle(ti,tj,tk);
+            }
+        }
+    };
+    auto key_down = [&](igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier){
+        if (key == ' ') {
+            end++;
+            set_viewer_data();
+            std::cout<<"from "<<begin%poly.rows()<<" to "<<end%poly.rows()<<" is valid: "<<Q[begin%poly.rows()][end%poly.rows()]<<std::endl;
+        }
+        if (key == '.') {
+            end++;
+            //show_mesh();
+            std::cout<<"from "<<begin%poly.rows()<<" to "<<end%poly.rows()<<" is valid: "<<Q[begin%poly.rows()][end%poly.rows()]<<std::endl;
+        }
+        return false;
+    };
+    v.callback_key_down = key_down;
+    v.launch();
+}
+#endif
