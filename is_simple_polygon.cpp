@@ -3,14 +3,54 @@
 #include <queue>
 #include <algorithm>
 #include <fstream>
+#include <igl/copyleft/cgal/orient2D.h>
+
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Polygon_2.h>
+#include <iostream>
+typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+typedef K::Point_2 cPoint;
+typedef CGAL::Polygon_2<K> Polygon_2;
 
 typedef std::pair<double,double> Point;
 typedef std::tuple<Point,Point,int> Segment;
 typedef std::tuple<Point,int,bool> Event; // (point, segment_id, enter/leave)
+
 struct Order{
-    // TODO: need to compare exactly
     bool operator() (const Segment& a, const Segment& b) const {
-        return a < b;
+        double al[2] = {std::get<0>(a).first, std::get<0>(a).second};
+        double ar[2] = {std::get<1>(a).first, std::get<1>(a).second};
+        double bl[2] = {std::get<0>(b).first, std::get<0>(b).second};
+        double br[2] = {std::get<1>(b).first, std::get<1>(b).second};
+        int id1 = std::get<2>(a);
+        int id2 = std::get<2>(b);
+        if(id1 == id2) return false;
+        if (al[0] <= bl[0]) {
+            short s = igl::copyleft::cgal::orient2D(al,ar,bl);
+            if (s != 0)
+                return s > 0;
+            else {
+                if (al[0] == ar[0])     // special case of vertical line.
+                    return al[1]<bl[1];
+                else{
+                    short t = igl::copyleft::cgal::orient2D(al,ar,br);
+                    if(t != 0){
+                        return t > 0;
+                    }else{
+                        if(ar[1] == br[1])
+                            return ar[0] < br[0];
+                        else 
+                            return ar[1]<br[1];
+                    }
+                }
+            }
+        } else {
+            short s = igl::copyleft::cgal::orient2D(bl, br, al);
+            if (s != 0)
+                return s < 0;
+            else
+                return igl::copyleft::cgal::orient2D(bl, br, ar) < 0;
+        }
     }
 };
 using SweepList = std::set<Segment,Order>;
@@ -21,14 +61,22 @@ void plot_segment(
     std::cout<<std::get<2>(seg)<<"("<<std::get<0>(seg).first<<","<<std::get<0>(seg).second<<")"<<" - ("<<std::get<1>(seg).first<<","<<std::get<1>(seg).second<<")\n";
 }
 
+void in_tree(){
+    for(int i=0;i<segments_in_tree.rows();i++){
+        std::cout<<i<<": "<<segments_in_tree(i)<<std::endl;
+    }
+}
+
 void plot_current_sl(
     const SweepList& seglist
 ){
     std::cout<<"current segment list: =====> "<<std::endl;
+    int i=0;
     for(auto seg: seglist){
-        std::cout<<"("<<std::get<0>(seg).first<<","<<std::get<0>(seg).second<<")"<<" - ("<<std::get<1>(seg).first<<","<<std::get<1>(seg).second<<")\n";
+        std::cout<<std::get<2>(seg)<<" ("<<std::get<0>(seg).first<<","<<std::get<0>(seg).second<<")"<<" - ("<<std::get<1>(seg).first<<","<<std::get<1>(seg).second<<")\n";
     }
     std::cout<<"current segment list: <===== "<<std::endl;
+    std::cout<<std::endl;
 
 }
 
@@ -38,9 +86,9 @@ bool disjoint_segment_intersect(
     Segment s2,
     int n
 ){
-    std::cout<<"test test"<<std::endl;
-    plot_segment(s1);
-    plot_segment(s2);
+    // std::cout<<"test test"<<std::endl;
+    // plot_segment(s1);
+    // plot_segment(s2);
     int id1 = std::get<2>(s1);
     int id2 = std::get<2>(s2);
     if(std::abs(id1-id2)==1 || std::abs(id1-id2)==n-1){
@@ -56,7 +104,7 @@ bool disjoint_segment_intersect(
     double c[2] = {std::get<0>(s2).first,std::get<0>(s2).second};
     double d[2] = {std::get<1>(s2).first,std::get<1>(s2).second};
     bool x = segment_segment_intersect(a,b,c,d,0.0);
-    std::cout<<"intersect? "<<x<<std::endl;
+    //std::cout<<"intersect? "<<x<<std::endl;
     return x;
 }
 
@@ -76,15 +124,16 @@ bool is_simple_polygon(const Eigen::MatrixXd& P){
         else 
             segments.push_back(Segment(p1,p2,segments.size()));
     }
+    segments_in_tree.setZero(segments.size());
 
     // build event list (sort segments)
     auto later = [](const Event& a, const Event& b){
         return a > b;
     };
-    for(Segment seg: segments){
-        std::cout<<std::get<2>(seg)<<"("<<std::get<0>(seg).first<<","<<std::get<0>(seg).second<<")"<<" - ("<<std::get<1>(seg).first<<","<<std::get<1>(seg).second<<")\n";
-    }
-
+    // for(Segment seg: segments){
+    //     std::cout<<std::get<2>(seg)<<"("<<std::get<0>(seg).first<<","<<std::get<0>(seg).second<<")"<<" - ("<<std::get<1>(seg).first<<","<<std::get<1>(seg).second<<")\n";
+    // }
+    std::cout<<std::setprecision(17)<<P<<std::endl;
     std::priority_queue<Event,std::vector<Event>,decltype(later)> Q(later);
     std::cout<<"#segments "<<segments.size()<<std::endl;
     for(int i=0;i<segments.size();i++){
@@ -109,20 +158,24 @@ bool is_simple_polygon(const Eigen::MatrixXd& P){
             plot_current_sl(sl);
             sl.insert(seg);
             plot_current_sl(sl);
-            auto pos = sl.find(seg);                
+            auto pos = sl.find(seg);
             auto prev = (pos == sl.begin()) ? pos: std::prev(pos);
             auto next = std::next(pos);
             if((pos  != sl.begin() && disjoint_segment_intersect(*pos,*prev,n)) ||
                (next != sl.end()   && disjoint_segment_intersect(*pos,*next,n)))
                 return false;
+            segments_in_tree(seg_id) = true;
+            //in_tree();
         }else{
-            plot_current_sl(sl);
+            segments_in_tree(seg_id) = false;
             auto pos = sl.find(seg);
             auto prev = (pos == sl.begin()) ? pos : std::prev(pos);
             auto next = (pos == sl.end()) ? pos : std::next(pos);
             if(pos != sl.begin() && next != sl.end() && disjoint_segment_intersect(*prev,*next,n))
                 return false;
             sl.erase(seg);
+            // plot_current_sl(sl);
+            // in_tree();
         }
     }
     return true;
@@ -145,10 +198,15 @@ void load_curve(
 }
 
 void test_is_simple_polygon(){
-    Eigen::MatrixXd P(4,2);
-    P<<0.875,-10.875,1,-11,1.125,-11.125,3,-9; 
-    load_curve(P,"complex_polygon4");
-    std::cout<<"check simple: "<<is_simple_polygon(P)<<std::endl;
+    Eigen::MatrixXd poly(4,2);
+    poly<<0.875,-10.875,1,-11,1.125,-11.125,3,-9; 
+    load_curve(poly,"complex_polygon2");
+    Polygon_2 poly_cgal;
+	for(int i=0;i<poly.rows();i++){
+		poly_cgal.push_back(cPoint(poly(i,0),poly(i,1)));
+    }
+    std::cout<<"check simple: "<<is_simple_polygon(poly)<<std::endl;
+    std::cout<<"cgal result: "<<poly_cgal.is_simple()<<std::endl;
     exit(0);
 }
 

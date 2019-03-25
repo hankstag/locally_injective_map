@@ -13,7 +13,7 @@
 #include <CGAL/Polygon_2.h>
 #include <iostream>
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-typedef K::Point_2 Point;
+typedef K::Point_2 cPoint;
 typedef CGAL::Polygon_2<K> Polygon_2;
 
 using namespace std;
@@ -310,15 +310,16 @@ void subdivide_polygon(
 		// erase L[p2], add to L[p1]
 		Polygon_2 poly_cgal;
 		for(int i=0;i<poly.rows();i++){
-			poly_cgal.push_back(Point(poly(i,0),poly(i,1)));
+			poly_cgal.push_back(cPoint(poly(i,0),poly(i,1)));
 		}
-	    // if(is_simple_polygon(poly)){
-        //     bool k = poly_cgal.is_simple();
-        //     if(!k){
-        //         std::cout<<poly<<std::endl;
-        //         exit(0);
-        //     }
-		if(poly_cgal.is_simple()){
+	    if(is_simple_polygon(poly)!=poly_cgal.is_simple()){
+            std::cout<<"my answer: "<<is_simple_polygon(poly)<<std::endl;
+            std::cout<<"cgal's ans: "<<poly_cgal.is_simple()<<std::endl;
+            std::cout<<poly<<std::endl;
+            exit(0);
+        }
+        if(is_simple_polygon(poly)){
+		// if(poly_cgal.is_simple()){
 			H[he]=-1;
 			H[rhe]=-1;
 			G[p2] = p1; // p2 belongs to p1 now
