@@ -6,7 +6,6 @@
 #include <unordered_set>
 #include <set>
 
-void test_is_simple_polygon();
 bool is_simple_polygon(const Eigen::MatrixXd& P);
 
 #endif

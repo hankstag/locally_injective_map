@@ -6,52 +6,75 @@
 #include <igl/copyleft/cgal/orient2D.h>
 #include <iostream>
 
-typedef std::pair<double,double> Point;
+typedef std::tuple<double,double,int> Point;
 typedef std::tuple<Point,Point,int> Segment;
 typedef std::tuple<Point,int,bool> Event; // (point, segment_id, enter/leave)
 
+bool is_simple_result = true;
+
 struct Order{
     bool operator() (const Segment& a, const Segment& b) const {
-        double al[2] = {std::get<0>(a).first, std::get<0>(a).second};
-        double ar[2] = {std::get<1>(a).first, std::get<1>(a).second};
-        double bl[2] = {std::get<0>(b).first, std::get<0>(b).second};
-        double br[2] = {std::get<1>(b).first, std::get<1>(b).second};
         int id1 = std::get<2>(a);
         int id2 = std::get<2>(b);
         if(id1 == id2) return false;
-        // TODO: is there a more concise way
-        if (al[0] <= bl[0]) {
-            short s = igl::copyleft::cgal::orient2D(al,ar,bl);
-            if (s != 0)
-                return s > 0;
-            else {
-                if (al[0] == ar[0])     // special case of vertical line.
-                    return al[1]<bl[1];
-                else{
-                    short t = igl::copyleft::cgal::orient2D(al,ar,br);
-                    if(t != 0){
-                        return t > 0;
-                    }else{
-                        if(ar[1] == br[1])
-                            return ar[0] < br[0];
-                        else 
-                            return ar[1] < br[1];
-                    }
-                }
+        // TODO: proper comparison
+        // notation: [a0 a1] [b0 b1]
+        // ordering rule: 
+        // | if a0.x != b0.x : bool r = left_is_higher(seg1, seg2)
+        // | if a0.x == b0.x :                                    
+        // |      if a0.y == b0.y:                                 
+        // |          switch orient(a0,b0,b1):                     
+        // |          case 1:  k   
+        // |          case -1: k
+        // |          case 0: not simple
+        // |      else 
+        // |          return a0.y < b0.y
+        auto left_is_higher = [&](const Segment& seg1, const Segment& seg2){
+            double al[2] = {std::get<0>(std::get<0>(seg1)), std::get<1>(std::get<0>(seg1))};
+            double ar[2] = {std::get<0>(std::get<1>(seg1)), std::get<1>(std::get<1>(seg1))};
+            double bl[2] = {std::get<0>(std::get<0>(seg2)), std::get<1>(std::get<0>(seg2))};
+            double br[2] = {std::get<0>(std::get<1>(seg2)), std::get<1>(std::get<1>(seg2))};
+            switch(igl::copyleft::cgal::orient2D(al,ar,bl)){
+                case -1: return false;break;
+                case 1 : return true ;break;
+                case 0 : if(std::get<2>(std::get<0>(seg2)) != std::get<2>(std::get<0>(seg1)) &&
+                            std::get<2>(std::get<0>(seg2)) != std::get<2>(std::get<1>(seg1)))
+                            // b1 and a0 a1 are not the same point
+                            is_simple_result = false;
+                         else return (al[1]<bl[1]);
             }
-        } else {
-            short s = igl::copyleft::cgal::orient2D(bl, br, al);
-            if (s != 0)
-                return s < 0;
-            else
-                return igl::copyleft::cgal::orient2D(bl, br, ar) < 0;
+            return false;
+        };
+        Point a0 = std::get<0>(a);
+        Point b0 = std::get<0>(b);
+        if(std::get<0>(a0) != std::get<0>(b0)){
+            return (std::get<0>(a0) > std::get<0>(b0)) ? !left_is_higher(b,a) : left_is_higher(a,b);
+        }else{
+            if(std::get<1>(a0) == std::get<1>(b0)){ // or use vertex id
+                double al[2] = {std::get<0>(std::get<0>(a)), std::get<1>(std::get<0>(a))};
+                double ar[2] = {std::get<0>(std::get<1>(a)), std::get<1>(std::get<1>(a))};
+                double bl[2] = {std::get<0>(std::get<0>(b)), std::get<1>(std::get<0>(b))};
+                double br[2] = {std::get<0>(std::get<1>(b)), std::get<1>(std::get<1>(b))};
+                switch(igl::copyleft::cgal::orient2D(al,ar,br)){
+                    case -1: return false;break;
+                    case 1 : return true ;break;
+                    case 0 : is_simple_result = false;
+                }
+                return false;
+            }else 
+                return std::get<1>(a0) < std::get<1>(b0);
         }
+
     }
 };
 using SweepList = std::set<Segment,Order>;
 
 // check whether Segment a and Segment b intersect each other
-bool disjoint_segment_intersect(Segment s1, Segment s2, int n){
+bool disjoint_segment_intersect(
+    Segment s1,
+    Segment s2,
+    int n
+){
     int id1 = std::get<2>(s1);
     int id2 = std::get<2>(s2);
     if(std::abs(id1-id2)==1 || std::abs(id1-id2)==n-1){
@@ -62,10 +85,10 @@ bool disjoint_segment_intersect(Segment s1, Segment s2, int n){
         else
             return false;
     }
-    double a[2] = {std::get<0>(s1).first,std::get<0>(s1).second};
-    double b[2] = {std::get<1>(s1).first,std::get<1>(s1).second};
-    double c[2] = {std::get<0>(s2).first,std::get<0>(s2).second};
-    double d[2] = {std::get<1>(s2).first,std::get<1>(s2).second};
+    double a[2] = {std::get<0>(std::get<0>(s1)),std::get<1>(std::get<0>(s1))};
+    double b[2] = {std::get<0>(std::get<1>(s1)),std::get<1>(std::get<1>(s1))};
+    double c[2] = {std::get<0>(std::get<0>(s2)),std::get<1>(std::get<0>(s2))};
+    double d[2] = {std::get<0>(std::get<1>(s2)),std::get<1>(std::get<1>(s2))};
     return segment_segment_intersect(a,b,c,d,0.0);
 }
 
@@ -73,13 +96,13 @@ bool is_simple_polygon(const Eigen::MatrixXd& P){
     // P: [a, b, c, d,...]
     // change it to the form of edges
     // E: [a, b; b, c; c, d;...]
-
+    is_simple_result = true;
     // build segments list
     std::vector<Segment> segments;
     for(int i=0;i<P.rows();i++){
         int i_1 = (i+1)%P.rows();
-        Point p1 = Point(P(i,  0),P(i  ,1));
-        Point p2 = Point(P(i_1,0),P(i_1,1));
+        Point p1 = Point(P(i,  0),P(i  ,1),i  );
+        Point p2 = Point(P(i_1,0),P(i_1,1),i_1);
         if(p1>p2)
             segments.push_back(Segment(p2,p1,segments.size()));
         else 
@@ -88,7 +111,16 @@ bool is_simple_polygon(const Eigen::MatrixXd& P){
 
     // build event list (sort segments)
     auto later = [](const Event& a, const Event& b){
-        return a > b;
+        if(std::get<0>(a) == std::get<0>(b)){
+            if(std::get<2>(a) == true && std::get<2>(b) == false)
+                return false;
+            else if(std::get<2>(a) == false && std::get<2>(b) == true)
+                return true;
+            else 
+                return a > b;
+        }
+        else
+            return a > b;
     };
     std::priority_queue<Event,std::vector<Event>,decltype(later)> Q(later);
     for(int i=0;i<segments.size();i++){
@@ -121,31 +153,6 @@ bool is_simple_polygon(const Eigen::MatrixXd& P){
             sl.erase(seg);
         }
     }
-    return true;
+    return is_simple_result;
 }
 
-void load_curve(
-    Eigen::MatrixXd& polygon,
-    const std::string& fileID
-){
-    std::ifstream myfile;
-    myfile.open(fileID);
-    polygon.resize(3000,2);
-    double x,y;
-    int i = 0;
-    while (myfile >> x){
-        myfile >> y;
-        polygon.row(i++) << x,y;
-    }
-    polygon.conservativeResize(i,2);
-}
-
-void test_is_simple_polygon(){
-    Eigen::MatrixXd poly(7,2);
-    //poly<<0.875,-10.875,1,-11,1.125,-11.125,3,-9; 
-    //poly<<0,0,4,0,4,2,2,2,5,2,4,4,0,4;
-    poly<<0,0,4,0,4,4,2,4,2,2,2,4,0,4,0,0;
-    // load_curve(poly,"complex_polygon4");
-    std::cout<<"check simple: "<<is_simple_polygon(poly)<<std::endl;
-    exit(0);
-}
