@@ -24,7 +24,7 @@ int main(int argc, char *argv[]){
         exit(0);
     }
     // test_segment_segment_intersect();
-    // test_is_simple_polygon();
+    test_is_simple_polygon();
     
     int loop, threshold;
     bool extract_bd;
