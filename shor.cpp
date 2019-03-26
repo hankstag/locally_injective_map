@@ -25,6 +25,7 @@ void set_rotation_index(
 ){
     Eigen::VectorXi bd;
     igl::boundary_loop(F,bd);
+    R.setZero(bd.rows());
     std::vector<std::vector<int>> A;
     igl::adjacency_list(F,A,true);
     // for every boundary vertex, update its rotation index
@@ -157,6 +158,7 @@ bool weakly_self_overlapping(
 		}
 	}
     std::cout<<"test done"<<std::endl; 
+    if(h == -1) return false;
 	add_triangle(F,h,(h-1+N)%N,K,Q);
 	return true;
 }

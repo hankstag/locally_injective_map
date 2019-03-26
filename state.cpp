@@ -103,6 +103,14 @@ void State::load_mesh(
         Eigen::MatrixXd CN;
         Eigen::MatrixXi FN;
         igl::readOBJ(fname,V,uv,CN,F,Fuv,FN);
+        Eigen::MatrixXd nV(uv.rows(),3);
+        for(int i=0;i<F.rows();i++){
+            nV.row(Fuv(i,0)) << V.row(F(i,0));
+            nV.row(Fuv(i,1)) << V.row(F(i,1));
+            nV.row(Fuv(i,2)) << V.row(F(i,2));
+        }
+        F = Fuv;
+        V = nV;
     }else if(x == "off")
         igl::readOFF(fname,V,F);
 }

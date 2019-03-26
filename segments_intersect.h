@@ -27,6 +27,26 @@ bool segment_segment_intersect(
     const Scalar eps
 );
 
+template <typename DerivedV>
+bool segment_segment_intersect(
+    const Eigen::MatrixBase<DerivedV>& A,
+    const Eigen::MatrixBase<DerivedV>& B,
+    const Eigen::MatrixBase<DerivedV>& C,
+    const Eigen::MatrixBase<DerivedV>& D, 
+    Eigen::PlainObjectBase<DerivedV>& q, 
+    bool calc=false
+);
+
+template <typename DerivedV>
+bool segment_segment_intersect(
+    typename DerivedV::Scalar a[2], 
+    typename DerivedV::Scalar b[2], 
+    typename DerivedV::Scalar c[2], 
+    typename DerivedV::Scalar d[2], 
+    Eigen::PlainObjectBase<DerivedV>& q, 
+    bool calc
+);
+
 void test_segment_segment_intersect();
 
 template <typename DerivedV>
