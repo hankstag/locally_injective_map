@@ -1,5 +1,6 @@
 
 #include "locally_injective_map.h"
+#include <igl/opengl/glfw/Viewer.h>
 
 using namespace std;
 
@@ -117,10 +118,10 @@ int refine(
             create_poly_from_edges(uv_vec,pMap,{e1,e2,e3},_list,pg);
             if(!(is_simple_polygon(pg) && orientation(pg)>0)){
                 if(isRefined[FF_s(f,i)]){
-                    std::cout.precision(30);
-                    std::cout<<pg<<std::endl;
+                    //std::cout.precision(30);
+                    //std::cout<<pg<<std::endl;
                     //std::cout<<is_simple_polygon(pg)<<","<<dp.is_simple()<<std::endl;
-                    std::cout<<"refined polygon "<<FF_s(f,i)<<" still not simple"<<std::endl;
+                    //std::cout<<"refined polygon "<<FF_s(f,i)<<" still not simple"<<std::endl;
                     continue;
                     // exit(0);
                 }else
@@ -319,14 +320,13 @@ bool triangulate_face(
         return (true); // no need to triangulate
     Eigen::MatrixXi eF;
     if(!is_simple_polygon(P)){
-       // use my shor
-       // std::cout<<"not possible"<<std::endl;
-       Eigen::VectorXi R_;
-       Eigen::MatrixXd nP_;
-       R_.setZero(P.rows());
-       std::cout<<std::setprecision(17)<<P<<std::endl;
-       Shor_van_wyck(P,R_,"",nP_,eF);
-       // exit(0);
+       Eigen::VectorXi local_R;
+       Eigen::MatrixXd nP;
+       local_R.setZero(P.rows());
+       bool succ = Shor_van_wyck(P,local_R,"",nP,eF,false);
+       if(!succ){
+           std::cout<<std::setprecision(17)<<P<<std::endl;
+       }
     }else{
 	    Eigen::VectorXi R(P.rows());
         R.setZero();
@@ -480,5 +480,8 @@ void locally_injective_map(
 
     // [generate joint common map]
     generate_map(F,F2,H1,H2,V,V2,Fn,uv);
-
+    std::cout<<"F size: "<<Fn.rows()<<"x"<<Fn.cols()<<std::endl;
+    std::cout<<"V size: "<<V.rows()<<"x"<<V.cols()<<std::endl;
+    std::cout<<"max v index: "<<Fn.maxCoeff()<<std::endl;
+    std::cout<<"min v index: "<<Fn.minCoeff()<<std::endl;
 }

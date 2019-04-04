@@ -19,28 +19,30 @@ typedef CGAL::Polygon_2<K> Polygon_2;
 using namespace std;
 
 void set_rotation_index(
-    const Eigen::MatrixXd& uv,
-    const Eigen::MatrixXi& F, 
-    Eigen::VectorXi& R
+   const Eigen::MatrixXd& uv,
+   const Eigen::MatrixXi& F,
+   Eigen::VectorXi& R,
+   int offset
 ){
-    Eigen::VectorXi bd;
-    igl::boundary_loop(F,bd);
-    R.setZero(bd.rows());
-    std::vector<std::vector<int>> A;
-    igl::adjacency_list(F,A,true);
-    // for every boundary vertex, update its rotation index
-    for(int i=0;i<bd.rows();i++){
-        int v = bd(i);
-        Angle sum = Angle();
-        std::reverse(A[v].begin(),A[v].end());
-        for(int j=0;j<A[v].size()-1;j++){
-            int id = A[v][j];
-            int id_1 = A[v][j+1];
-            Angle I(uv.row(id),uv.row(v),uv.row(id_1)); // w1, v, w2
-            sum = (j==0)? I: sum+I;
-        }
-        R(i) = sum.r;
-    }
+   Eigen::VectorXi bd;
+   igl::boundary_loop(F,bd);
+   R.setZero(bd.rows());
+   std::vector<std::vector<int>> A;
+   igl::adjacency_list(F,A,true);
+
+   // for every boundary vertex, update its rotation index
+   for(int i=0;i<bd.rows();i++){
+       int v = bd((i+offset)%bd.rows());
+       Angle sum = Angle();
+       std::reverse(A[v].begin(),A[v].end());
+       for(int j=0;j<A[v].size()-1;j++){
+           int id = A[v][j];
+           int id_1 = A[v][j+1];
+           Angle I(uv.row(id),uv.row(v),uv.row(id_1)); // w1, v, w2
+           sum = (j==0)? I: sum+I;
+       }
+       R(i) = sum.r;
+   }
 }
 
 void add_triangle(
@@ -440,7 +442,6 @@ bool Shor_van_wyck(
 	bool succ = (nP.rows()==0) || weakly_self_overlapping(nP,nR,nF);
 	if(!succ){
         std::cout<<"shor failed"<<std::endl;
-        exit(0);
         return false;
     }
     // [map simplified index to initial polygon]

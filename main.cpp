@@ -8,56 +8,11 @@
 #include <igl/slice.h>
 #include "argh.h"
 
+#include "load_model.h"
 #include "shor.h"
 #include "state.h"
 #include "is_simple_polygon.h"
 #include "locally_injective_map.h"
-
-void load_all(
-    std::string model, 
-    Eigen::MatrixXd& V,
-    Eigen::MatrixXd& uv,
-    Eigen::MatrixXi& F,
-    Eigen::MatrixXd& P,
-    Eigen::VectorXi& R,
-    Eigen::VectorXi& T
-){
-    Eigen::MatrixXd CN;
-    Eigen::MatrixXi Fuv,FN;
-    igl::readOBJ(model,V,uv,CN,F,Fuv,FN);
-
-    // copy face from uv
-    std::vector<std::vector<int>> D1,D2;
-    igl::boundary_loop(F  ,D1);    
-    igl::boundary_loop(Fuv,D2);
-    Eigen::VectorXd A1,A2;
-    igl::doublearea(V,F,A1);
-    igl::doublearea(uv,Fuv,A2);
-    std::cout<<"min size 3d "<<A1.minCoeff()<<", min size 2d "<<A2.minCoeff()<<std::endl;
-    std::cout<<"model size: #F("<<F.rows()<<"), #V("<<V.rows()<<")"<<std::endl;
-    std::cout<<"source #BD("<<D1.size()<<")"<<std::endl;
-    std::cout<<"target #BD("<<D2.size()<<")"<<std::endl;
-    #define USEUV
-    #ifdef USEUV
-    Eigen::MatrixXd nV(uv.rows(),3);
-    for(int i=0;i<F.rows();i++){
-        nV.row(Fuv(i,0)) << V.row(F(i,0));
-        nV.row(Fuv(i,1)) << V.row(F(i,1));
-        nV.row(Fuv(i,2)) << V.row(F(i,2));
-    }
-    F = Fuv;
-    V = nV;
-    #endif
-    //fill_in_holes(V,F);
-    auto D = D2[0];
-    P.resize(D.size(),2);
-    T.resize(P.rows());
-    set_rotation_index(uv,Fuv,R);
-    for(int i=0;i<P.rows();i++){
-        P.row(i)<<uv.row(D[i]);
-        T(i) = D[i];
-    }
-}
 
 int main(int argc, char *argv[]){
 
@@ -74,32 +29,52 @@ int main(int argc, char *argv[]){
     
     int loop, threshold;
     bool extract_bd;
-    std::string model_name, ri_file, poly_file, model_name2;
+    std::string model_name, ri_file, poly_file, uvfile;
     cmdl("-in") >> model_name;
+    cmdl("-uv") >> uvfile;
     cmdl("-r") >> ri_file;
     cmdl("-poly") >> poly_file;
-
+    if(uvfile=="" || ri_file==""){
+        uvfile=model_name;
+        ri_file=model_name;
+    }
     Eigen::MatrixXd V,uv;
     Eigen::MatrixXi F,Fuv;
     Eigen::MatrixXd P;
-    Eigen::VectorXi R;
-
-    State state = State();
-    // assume it to be disk
-    state.load_mesh(model_name,V,F,uv,Fuv);
-
-    state.load_polygon(poly_file,P);
-    Eigen::VectorXi bd;
-    igl::boundary_loop(F,bd);
+    Eigen::VectorXi R,T;
+    Eigen::VectorXi bd0,bd1;
     std::map<int,int> Rmap;
-    state.load_rotation_index(ri_file,Rmap);
+    load_rotation_index(ri_file,Rmap);
+    load_model_with_seam(model_name,V,F,P,bd0);
+    // std::pair<int,int> match;
+    // load_matching_info(uvfile,match);
+    // Eigen::MatrixXd _polygon;
+    // load_model_with_seam(uvfile,uv,Fuv,_polygon,bd1);
+    // uv.conservativeResize(uv.rows(),2);
+    // int id0 = 0,id1 = 0;
+    // for(int i=0;i<bd0.rows();i++){
+    //     if(bd0(i) == match.first)
+    //         id0 = i;
+    //     if(bd1(i) == match.second)
+    //         id1 = i;
+    // }
+    // int offset = (id1-id0+bd1.rows())%bd1.rows();
+    // std::cout<<"setting rotation index..."<<std::endl;
+    // set_rotation_index(uv,Fuv,R,offset);
     R.setZero(P.rows());
     for(int i=0;i<P.rows();i++){
-        R(i) = Rmap[i];
+        R(i) = Rmap[bd0(i)]/360;
     }
-    Eigen::VectorXi T;
-    if(poly_file=="")
-        load_all(model_name,V,uv,F,P,R,T);
+
+    igl::opengl::glfw::Viewer vr;
+    vr.core.align_camera_center(P);
+    for(int i=0;i<P.rows();i++){
+        int i_1 = (i+1) % P.rows();
+        if(R(i) != 0)
+            vr.data().add_points(P.row(i),Eigen::RowVector3d(0,0,0));
+        vr.data().add_edges(P.row(i),P.row(i_1),Eigen::RowVector3d(1,0,0));
+    }
+    vr.launch();
     Eigen::MatrixXi Fn;
     locally_injective_map(V,F,P,R,T,uv,Fn);
     // Plot the mesh

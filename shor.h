@@ -147,7 +147,8 @@ void add_triangle(
 void set_rotation_index(
     const Eigen::MatrixXd& uv,
     const Eigen::MatrixXi& F, 
-    Eigen::VectorXi& R
+    Eigen::VectorXi& R,
+    int offset=0
 );
 
 bool Shor_van_wyck(
