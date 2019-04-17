@@ -9,7 +9,7 @@ New York University, USA
 
 ## What does it do
 
-We present an algorithm for mapping a triangle mesh, which is homeomorphic to a disk, to a planar domain with arbitrary fixed boundaries. The algorithm is guaranteed to produce a globally bijective map when the boundary is fixed to a shape that does not self-intersect. 
+> We present an algorithm for mapping a triangle mesh, which is homeomorphic to a disk, to a planar domain with arbitrary fixed boundaries. The algorithm is guaranteed to produce a globally bijective map when the boundary is fixed to a shape that does not self-intersect. 
 Meaning: given a model with disk topology, and a target 2D polygon (weakly self-overlapping or non-self-intersect), generate an locally injective/globally bijective map.
 
 Here are some examples using the cut from the dataset (http://vcg.isti.cnr.it/Publications/2014/MPZ14/)
