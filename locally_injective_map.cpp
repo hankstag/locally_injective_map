@@ -1,186 +1,188 @@
 
 #include "locally_injective_map.h"
+#include "segments_intersect.h"
+#include <igl/copyleft/cgal/ear_clipping.h>
 #include <igl/opengl/glfw/Viewer.h>
 
 using namespace std;
 
 template <typename DerivedV>
 void generate_map(
-    const Eigen::MatrixXi& Fs,
-    const Eigen::MatrixXi& Ft,
-    const Eigen::PlainObjectBase<DerivedV>& harmo_s,
-    const Eigen::PlainObjectBase<DerivedV>& harmo_t,
-    Eigen::PlainObjectBase<DerivedV>& V,
-    Eigen::MatrixBase<DerivedV>& Vd, // target triangle mesh
-    Eigen::MatrixXi& Fn,
-    Eigen::PlainObjectBase<DerivedV>& uv)
+  const Eigen::MatrixXi& Fs,
+  const Eigen::MatrixXi& Ft,
+  const Eigen::PlainObjectBase<DerivedV>& harmo_s,
+  const Eigen::PlainObjectBase<DerivedV>& harmo_t,
+  Eigen::PlainObjectBase<DerivedV>& V,
+  Eigen::MatrixBase<DerivedV>& Vd, // target triangle mesh
+  Eigen::MatrixXi& Fn,
+  Eigen::PlainObjectBase<DerivedV>& uv)
 {
-    typedef typename DerivedV::Scalar Scalar;
-    Fn = Fs;
-    // calculate reverse map
-	igl::AABB<Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic>,2> aabb_s;
-    igl::AABB<Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic>,2> aabb_t;
-  	aabb_s.init(harmo_s,Fs);
-	aabb_t.init(harmo_t,Ft);
+  typedef typename DerivedV::Scalar Scalar;
+  Fn = Fs;
+  // calculate reverse map
+  igl::AABB<Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic>,2> aabb_s;
+  igl::AABB<Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic>,2> aabb_t;
+  aabb_s.init(harmo_s,Fs);
+  aabb_t.init(harmo_t,Ft);
 
-    Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> vd = Vd.leftCols(2);
-	get_image(harmo_t,Ft,harmo_s,aabb_t,vd,uv);
+  Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> vd = Vd.leftCols(2);
+  get_image(harmo_t,Ft,harmo_s,aabb_t,vd,uv);
 
-    // collect flipped
-    std::vector<int> flip_list;
-    for(int i=0;i<Fs.rows();i++){
-        Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> tri(3,2);
-        tri<<uv.row(Fs(i,0)),uv.row(Fs(i,1)),uv.row(Fs(i,2));
-        if(orientation(tri)<=0)
-            flip_list.emplace_back(i);
-    }
-    // refinement
-    refine(flip_list, aabb_s, aabb_t, Fs,Ft, harmo_s, harmo_t, V, Vd, Fn, uv);
+  // collect flipped
+  std::vector<int> flip_list;
+  for(int i=0;i<Fs.rows();i++){
+    Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> tri(3,2);
+    tri<<uv.row(Fs(i,0)),uv.row(Fs(i,1)),uv.row(Fs(i,2));
+    if(orientation(tri)<=0)
+      flip_list.emplace_back(i);
+  }
+  // refinement
+  refine(flip_list, aabb_s, aabb_t, Fs,Ft, harmo_s, harmo_t, V, Vd, Fn, uv);
 
 }
 
 template <typename DerivedV>
 void get_image(
-	const Eigen::PlainObjectBase<DerivedV>& V,
-	const Eigen::MatrixXi& F,
-	const Eigen::PlainObjectBase<DerivedV>& Q,
-	const igl::AABB<Eigen::Matrix<typename DerivedV::Scalar,Eigen::Dynamic,Eigen::Dynamic>,2>& tree,
-	const Eigen::MatrixBase<DerivedV>& Vd,
-	Eigen::PlainObjectBase<DerivedV>& img_Q
+  const Eigen::PlainObjectBase<DerivedV>& V,
+  const Eigen::MatrixXi& F,
+  const Eigen::PlainObjectBase<DerivedV>& Q,
+  const igl::AABB<Eigen::Matrix<typename DerivedV::Scalar,Eigen::Dynamic,Eigen::Dynamic>,2>& tree,
+  const Eigen::MatrixBase<DerivedV>& Vd,
+  Eigen::PlainObjectBase<DerivedV>& img_Q
 ){
-    typedef typename DerivedV::Scalar Scalar;
-	img_Q.resize(Q.rows(),Vd.cols());
-	Eigen::VectorXi I;
-	igl::in_element(V,F,Q,tree,I);
-	for(int i=0;i<img_Q.rows();i++){
-		int a = F(I(i),0);
-		int b = F(I(i),1);
-		int c = F(I(i),2);
-		Eigen::Matrix<Scalar,3,1> x;
-		Eigen::Matrix<Scalar,3,1> rhs;
-        rhs<<Q.row(i).transpose(),1.0f;
-        Eigen::Matrix<Scalar,3,3> A;
-        A<<V(a,0),V(b,0),V(c,0),
-           V(a,1),V(b,1),V(c,1),
-           1,1,1;
-        x = A.colPivHouseholderQr().solve(rhs);
-        img_Q.row(i) << Vd.row(a)*x(0)+Vd.row(b)*x(1)+Vd.row(c)*x(2);
-	}
+  typedef typename DerivedV::Scalar Scalar;
+  img_Q.resize(Q.rows(),Vd.cols());
+  Eigen::VectorXi I;
+  igl::in_element(V,F,Q,tree,I);
+  for(int i=0;i<img_Q.rows();i++){
+    int a = F(I(i),0);
+    int b = F(I(i),1);
+    int c = F(I(i),2);
+    Eigen::Matrix<Scalar,3,1> x;
+    Eigen::Matrix<Scalar,3,1> rhs;
+    rhs<<Q.row(i).transpose(),1.0f;
+    Eigen::Matrix<Scalar,3,3> A;
+    A<<V(a,0),V(b,0),V(c,0),
+       V(a,1),V(b,1),V(c,1),
+       1,1,1;
+    x = A.colPivHouseholderQr().solve(rhs);
+    img_Q.row(i) << Vd.row(a)*x(0)+Vd.row(b)*x(1)+Vd.row(c)*x(2);
+  }
 }
 
 template <typename DerivedV>
 int refine(
-    std::vector<int>& neg,
-    const igl::AABB<Eigen::Matrix<typename DerivedV::Scalar,Eigen::Dynamic,Eigen::Dynamic>,2>& s_tree,
-    const igl::AABB<Eigen::Matrix<typename DerivedV::Scalar,Eigen::Dynamic,Eigen::Dynamic>,2>& t_tree,
-    const Eigen::MatrixXi& Fs,
-    const Eigen::MatrixXi& Ft,
-    const Eigen::PlainObjectBase<DerivedV>& vh_s,
-    const Eigen::PlainObjectBase<DerivedV>& vh_t,
-    Eigen::PlainObjectBase<DerivedV>& V,
-    Eigen::MatrixBase<DerivedV>& Vd,
-    Eigen::MatrixXi& Fn,
-    Eigen::PlainObjectBase<DerivedV>& uv
+  std::vector<int>& neg,
+  const igl::AABB<Eigen::Matrix<typename DerivedV::Scalar,Eigen::Dynamic,Eigen::Dynamic>,2>& s_tree,
+  const igl::AABB<Eigen::Matrix<typename DerivedV::Scalar,Eigen::Dynamic,Eigen::Dynamic>,2>& t_tree,
+  const Eigen::MatrixXi& Fs,
+  const Eigen::MatrixXi& Ft,
+  const Eigen::PlainObjectBase<DerivedV>& vh_s,
+  const Eigen::PlainObjectBase<DerivedV>& vh_t,
+  Eigen::PlainObjectBase<DerivedV>& V,
+  Eigen::MatrixBase<DerivedV>& Vd,
+  Eigen::MatrixXi& Fn,
+  Eigen::PlainObjectBase<DerivedV>& uv
 ){
-    typedef typename DerivedV::Scalar Scalar; 
-    typedef std::pair<Scalar,Scalar> P2;   
-    int size = neg.size();
-    if (size == 0){
-        std::cout << "No need to refine.\n";
-        return 0;
-    }else{
-        std::cout << "# of negative triangles: " << size << "\nrefine...\n";
-    }
+  typedef typename DerivedV::Scalar Scalar; 
+  typedef std::pair<Scalar,Scalar> P2;   
+  int size = neg.size();
+  if (size == 0){
+    std::cout << "No need to refine.\n";
+    return 0;
+  }else{
+    std::cout << "# of negative triangles: " << size << "\nrefine...\n";
+  }
     
-    int startSize = V.rows();
-    PointMap<Scalar> pMap;
-    Eigen::MatrixXi FF_s,FF_t,FFI;
-    igl::triangle_triangle_adjacency(Fs,FF_s,FFI);
-    igl::triangle_triangle_adjacency(Ft,FF_t,FFI);
-    std::vector<int> stack=neg; // store the flipped triangles
-    std::vector<bool> isRefined(Fs.rows(),false);
-    std::vector<P2> uv_vec(uv.rows());
-    for(int i=0;i<uv.rows();i++)
-        uv_vec[i] = P2(uv(i,0),uv(i,1));
+  int startSize = V.rows();
+  PointMap<Scalar> pMap;
+  Eigen::MatrixXi FF_s,FF_t,FFI;
+  igl::triangle_triangle_adjacency(Fs,FF_s,FFI);
+  igl::triangle_triangle_adjacency(Ft,FF_t,FFI);
+  std::vector<int> stack=neg; // store the flipped triangles
+  std::vector<bool> isRefined(Fs.rows(),false);
+  std::vector<P2> uv_vec(uv.rows());
+  for(int i=0;i<uv.rows();i++)
+    uv_vec[i] = P2(uv(i,0),uv(i,1));
   
-    while(stack.size()>0){
-        int f = stack.back();
-        stack.pop_back();
-        refineTriangle(f, V, Vd, vh_s, vh_t, FF_s, FF_t, Fs, Ft, pMap, uv_vec, s_tree, t_tree);
-        isRefined[f] = true;
-        for(int i=0;i<3;i++){
-            if(FF_s(f,i)<0) continue;
-            std::pair<int,int> e1(Fn(FF_s(f,i),0), Fn(FF_s(f,i),1));
-            std::pair<int,int> e2(Fn(FF_s(f,i),1), Fn(FF_s(f,i),2));
-            std::pair<int,int> e3(Fn(FF_s(f,i),2), Fn(FF_s(f,i),0));
-            Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> pg;
-            std::vector<int> _list;
-            create_poly_from_edges(uv_vec,pMap,{e1,e2,e3},_list,pg);
-            if(!(is_simple_polygon(pg) && orientation(pg)>0)){
-                if(isRefined[FF_s(f,i)]){
-                    //std::cout.precision(30);
-                    //std::cout<<pg<<std::endl;
-                    //std::cout<<is_simple_polygon(pg)<<","<<dp.is_simple()<<std::endl;
-                    //std::cout<<"refined polygon "<<FF_s(f,i)<<" still not simple"<<std::endl;
-                    continue;
-                    // exit(0);
-                }else
-                    stack.push_back(FF_s(f,i));
-            }
-            neg.push_back(FF_s(f,i));
-        }
+  while(stack.size()>0){
+    int f = stack.back();
+    stack.pop_back();
+    refineTriangle(f, V, Vd, vh_s, vh_t, FF_s, FF_t, Fs, Ft, pMap, uv_vec, s_tree, t_tree);
+    isRefined[f] = true;
+    for(int i=0;i<3;i++){
+      if(FF_s(f,i)<0) continue;
+      std::pair<int,int> e1(Fn(FF_s(f,i),0), Fn(FF_s(f,i),1));
+      std::pair<int,int> e2(Fn(FF_s(f,i),1), Fn(FF_s(f,i),2));
+      std::pair<int,int> e3(Fn(FF_s(f,i),2), Fn(FF_s(f,i),0));
+      Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> pg;
+      std::vector<int> _list;
+      create_poly_from_edges(uv_vec,pMap,{e1,e2,e3},_list,pg);
+      if(!(is_simple_polygon(pg) && orientation(pg)>0)){
+          if(isRefined[FF_s(f,i)]){
+              //std::cout.precision(30);
+              //std::cout<<pg<<std::endl;
+              //std::cout<<is_simple_polygon(pg)<<","<<dp.is_simple()<<std::endl;
+              //std::cout<<"refined polygon "<<FF_s(f,i)<<" still not simple"<<std::endl;
+              continue;
+              // exit(0);
+          }else
+              stack.push_back(FF_s(f,i));
+      }
+      neg.push_back(FF_s(f,i));
     }
-    std::cout << "Done!\nSimplify - trying to reduce number of new points...\n";
+  }
+  std::cout << "Done!\nSimplify - trying to reduce number of new points...\n";
 
 #define SIMP 
 #ifdef SIMP
-    // need to add here simplify function
-    simplify(pMap, Fn, uv_vec);
+  // need to add here simplify function
+  simplify(pMap, Fn, uv_vec);
 #endif
-    int v_num = V.rows();
-    uv.conservativeResize(v_num+pMap.new_v,2);
-    V.conservativeResize(v_num+pMap.new_v,Eigen::NoChange);
-    std::set<std::pair<int,int>> visitedPairs;
-    for(auto p: pMap.edgeToFace){
-        std::pair<int,int> e = p.first;
-        if (visitedPairs.count(e) != 0){
-            continue;
-        }
-        visitedPairs.insert(e);
-        visitedPairs.insert(std::make_pair(e.second,e.first));
-        auto uv_e = pMap.vpos_t[e];
-        auto v_e = pMap.vpos_s[e];
-
-        std::vector<int> v_ids;
-        for (int i = 1; i < uv_e.size() - 1; ++i){
-            uv.row(v_num)<<std::get<0>(uv_e[i]),std::get<1>(uv_e[i]);
-            V.row(v_num)<<std::get<0>(v_e[i]),std::get<1>(v_e[i]),std::get<2>(v_e[i]);
-            v_ids.push_back(v_num);
-            v_num++;
-        }
-        // reset all the indices of new points
-        pMap.set_index(e,v_ids);
+  int v_num = V.rows();
+  uv.conservativeResize(v_num+pMap.new_v,2);
+  V.conservativeResize(v_num+pMap.new_v,Eigen::NoChange);
+  std::set<std::pair<int,int>> visitedPairs;
+  for(auto p: pMap.edgeToFace){
+    std::pair<int,int> e = p.first;
+    if (visitedPairs.count(e) != 0){
+        continue;
     }
+    visitedPairs.insert(e);
+    visitedPairs.insert(std::make_pair(e.second,e.first));
+    auto uv_e = pMap.vpos_t[e];
+    auto v_e = pMap.vpos_s[e];
     
-    std::vector<bool> isTriangulated(Fs.rows(), false);
-    uv_vec.resize(uv.rows());
-    for(int i=0;i<uv.rows();i++)
-        uv_vec[i] = P2(uv(i,0),uv(i,1));
-    for (auto f: neg){
-        if (isTriangulated[f])  continue;
-        bool result = triangulate_face(f, Fn, pMap, uv_vec);
-        assert(result && "triangulation failed");
-        isTriangulated[f] = true;
+    std::vector<int> v_ids;
+    for (int i = 1; i < uv_e.size() - 1; ++i){
+        uv.row(v_num)<<std::get<0>(uv_e[i]),std::get<1>(uv_e[i]);
+        V.row(v_num)<<std::get<0>(v_e[i]),std::get<1>(v_e[i]),std::get<2>(v_e[i]);
+        v_ids.push_back(v_num);
+        v_num++;
     }
-    // drop the (-1,-1,-1) rows
-    Eigen::MatrixXi tF=Fn;
-	int k=0;
-	for(int i=0;i<Fn.rows();i++){
-		if(Fn.row(i).sum()!=-3)
-			tF.row(k++)<<Fn.row(i);
+    // reset all the indices of new points
+    pMap.set_index(e,v_ids);
+}
+    
+  std::vector<bool> isTriangulated(Fs.rows(), false);
+  uv_vec.resize(uv.rows());
+  for(int i=0;i<uv.rows();i++)
+      uv_vec[i] = P2(uv(i,0),uv(i,1));
+  for (auto f: neg){
+      if (isTriangulated[f])  continue;
+      bool result = triangulate_face(f, Fn, pMap, uv_vec);
+      assert(result && "triangulation failed");
+      isTriangulated[f] = true;
+  }
+  // drop the (-1,-1,-1) rows
+  Eigen::MatrixXi tF=Fn;
+  int k=0;
+  for(int i=0;i<Fn.rows();i++){
+    if(Fn.row(i).sum()!=-3)
+      tF.row(k++)<<Fn.row(i);
     }
-	tF.conservativeResize(k,3);
-	Fn = tF;
+  tF.conservativeResize(k,3);
+  Fn = tF;
     int numOfNewPoints = V.rows() - startSize;
     std::cout << "Done!\n# of new points: " << numOfNewPoints << "\n";
     return 0;
@@ -189,80 +191,81 @@ int refine(
 template <typename Scalar>
 void simplify(PointMap<Scalar>& pMap, const Eigen::MatrixXi& Fn, const std::vector<std::pair<Scalar,Scalar>>& uv_vec)
 {
-    bool stopFlag = true;
-    std::unordered_map<std::pair<int,int>,int> edges_to_check = pMap.edgeToFace;
-    std::unordered_map<std::pair<int,int>,int> edgesTmp; // stores the next collection of edges to check
-
-    // whether polygon P is still simple after drop i
-    auto check_simple = [](
-        const Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic>& P, 
-        int i, 
-        Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic>& Q
-    ){
-        int N = P.rows();
-        Eigen::Matrix<Scalar,1,2> a = P.row((i-1+N)%N);
-        Eigen::Matrix<Scalar,1,2> b = P.row((i+1)%N);
-        bool cross = false;
-        for(int e=0;e<P.rows();e++){
-            Eigen::Matrix<Scalar,1,2> c(2);
-            Eigen::Matrix<Scalar,1,2> d(2);
-            Eigen::Matrix<Scalar,1,2> _q;
-            c<<P(e,0),P(e,1);
-            d<<P((e + 1)%N,0),P((e + 1)%N,1);
-            if(segment_segment_intersect(a,b,c,d,_q,false)){
-                cross = true;
-                break;
-            }
+  bool stopFlag = true;
+  std::unordered_map<std::pair<int,int>,int> edges_to_check = pMap.edgeToFace;
+  std::unordered_map<std::pair<int,int>,int> edgesTmp; // stores the next collection of edges to check
+  
+  // whether polygon P is still simple after drop i
+  auto check_simple = [](
+    const Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic>& P, 
+    int i, 
+    Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic>& Q
+  ){
+    int N = P.rows();
+    Eigen::Matrix<Scalar,1,2> a = P.row((i-1+N)%N);
+    Eigen::Matrix<Scalar,1,2> b = P.row((i+1)%N);
+    bool cross = false;
+    for(int e=0;e<P.rows();e++){
+        Eigen::Matrix<Scalar,1,2> c(2);
+        Eigen::Matrix<Scalar,1,2> d(2);
+        Eigen::Matrix<Scalar,1,2> _q;
+        c<<P(e,0),P(e,1);
+        d<<P((e + 1)%N,0),P((e + 1)%N,1);
+        if(segment_segment_intersect(a,b,c,d,_q,false)){
+            cross = true;
+            break;
         }
-        if(!cross){
-            Q.resize(N-1,2);
-            Q<<P.topRows(i),P.bottomRows(N-1-i);
-        }
-        return !cross;
-    };
-    while(!edges_to_check.empty()){
-        edgesTmp.clear();
-        double loop = 1;
-        for(auto edge: edges_to_check){
-            std::cerr<<"simplify "<<loop<<"/"<<edges_to_check.size()<<"     ";
-            std::cerr<<"\r";
-            int a = edge.first.first;
-            int b = edge.first.second;
-            std::pair<int,int> e1(a,b);
-            std::pair<int,int> e2(b,a);
-            
-            int f1 = pMap.edgeToFace[e1];
-            int f2 = pMap.edgeToFace[e2];
-            int c = Fn.row(f1).sum()-a-b;
-            int d = Fn.row(f2).sum()-b-a;
-
-            Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> p1,p2;
-            std::vector<int> _ind1,_ind2;
-            create_poly_from_edges(uv_vec,pMap,{e1,std::pair<int,int>(b,c),std::pair<int,int>(c,a)},_ind1,p1);
-            create_poly_from_edges(uv_vec,pMap,{e2,std::pair<int,int>(a,d),std::pair<int,int>(d,b)},_ind2,p2);
-            int len = pMap.vpos_s[e1].size();
-            for (int i = 1; i < len - 1; ++i){
-                Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> q1;
-                Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> q2;
-                if(check_simple(p1,i,q1) && check_simple(p2,len-1-i,q2) && orientation(q1)>0 && orientation(q2)>0){
-                    p1 = q1;
-                    p2 = q2;
-                    pMap.drop_point(e1,i);
-                    pMap.new_v--;
-                    // no need for -> pMap.drop_point(e1,n-1-i);
-                    len--;
-                    i--;
-                    for(auto p: {std::pair<int,int>(b,c),std::pair<int,int>(c,a),std::pair<int,int>(a,d),std::pair<int,int>(d,b)}){
-                        if(pMap.edgeToFace.count(p)!=0){
-                            edgesTmp[p]=pMap.edgeToFace[p];
-                        }
-                    }
-                }
-            }
-            loop++;
-        }
-        edges_to_check=edgesTmp;    
     }
+    if(!cross){
+        Q.resize(N-1,2);
+        Q<<P.topRows(i),P.bottomRows(N-1-i);
+    }
+      return !cross;
+  };
+  
+  while(!edges_to_check.empty()){
+    edgesTmp.clear();
+    double loop = 1;
+    for(auto edge: edges_to_check){
+      std::cerr<<"simplify "<<loop<<"/"<<edges_to_check.size()<<"     ";
+      std::cerr<<"\r";
+      int a = edge.first.first;
+      int b = edge.first.second;
+      std::pair<int,int> e1(a,b);
+      std::pair<int,int> e2(b,a);
+      
+      int f1 = pMap.edgeToFace[e1];
+      int f2 = pMap.edgeToFace[e2];
+      int c = Fn.row(f1).sum()-a-b;
+      int d = Fn.row(f2).sum()-b-a;
+
+      Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> p1,p2;
+      std::vector<int> _ind1,_ind2;
+      create_poly_from_edges(uv_vec,pMap,{e1,std::pair<int,int>(b,c),std::pair<int,int>(c,a)},_ind1,p1);
+      create_poly_from_edges(uv_vec,pMap,{e2,std::pair<int,int>(a,d),std::pair<int,int>(d,b)},_ind2,p2);
+      int len = pMap.vpos_s[e1].size();
+      for (int i = 1; i < len - 1; ++i){
+          Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> q1;
+          Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> q2;
+          if(check_simple(p1,i,q1) && check_simple(p2,len-1-i,q2) && orientation(q1)>0 && orientation(q2)>0){
+              p1 = q1;
+              p2 = q2;
+              pMap.drop_point(e1,i);
+              pMap.new_v--;
+              // no need for -> pMap.drop_point(e1,n-1-i);
+              len--;
+              i--;
+              for(auto p: {std::pair<int,int>(b,c),std::pair<int,int>(c,a),std::pair<int,int>(a,d),std::pair<int,int>(d,b)}){
+                  if(pMap.edgeToFace.count(p)!=0){
+                      edgesTmp[p]=pMap.edgeToFace[p];
+                  }
+              }
+          }
+      }
+      loop++;
+    }
+    edges_to_check=edgesTmp;    
+  }
 }
 template <typename DerivedV>
 void create_poly_from_edges(
@@ -330,16 +333,16 @@ bool triangulate_face(
     }else{
 	    Eigen::VectorXi R(P.rows());
         R.setZero();
-	    Eigen::VectorXi C_,R_;
+	    Eigen::VectorXi R_,D_;
 	    Eigen::MatrixXd nP_;
-        ear_clipping(P,R,C_,eF,nP_,R_);
+      igl::copyleft::cgal::ear_clipping(P,R,D_,eF,nP_);
     }
     int nf=Fn.rows();
     Fn.conservativeResize(Fn.rows()+eF.rows(),Eigen::NoChange);
     for(int i=0; i<eF.rows(); i++){
         Fn.row(nf++)<<indices[eF(i,0)], indices[eF(i,1)], indices[eF(i,2)];
     }
-    Fn.row(triIndex)<<-1,-1,-1;    
+    Fn.row(triIndex)<<-1,-1,-1;
     return (true);
 }
 

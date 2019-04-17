@@ -10,7 +10,6 @@
 
 #include "load_model.h"
 #include "shor.h"
-#include "state.h"
 #include "is_simple_polygon.h"
 #include "locally_injective_map.h"
 
@@ -26,7 +25,7 @@ int main(int argc, char *argv[]){
         exit(0);
     }
     // test_segment_segment_intersect();
-    
+    // test_ear_clipping();
     int loop, threshold;
     bool extract_bd;
     std::string model_name, ri_file, poly_file, uvfile;
@@ -48,8 +47,8 @@ int main(int argc, char *argv[]){
     load_model_with_seam(model_name,V,F,P,bd0);
     // std::pair<int,int> match;
     // load_matching_info(uvfile,match);
-    // Eigen::MatrixXd _polygon;
-    // load_model_with_seam(uvfile,uv,Fuv,_polygon,bd1);
+    Eigen::MatrixXd _polygon;
+    load_model_with_seam(uvfile,uv,Fuv,_polygon,bd1);
     // uv.conservativeResize(uv.rows(),2);
     // int id0 = 0,id1 = 0;
     // for(int i=0;i<bd0.rows();i++){
@@ -60,14 +59,13 @@ int main(int argc, char *argv[]){
     // }
     // int offset = (id1-id0+bd1.rows())%bd1.rows();
     // std::cout<<"setting rotation index..."<<std::endl;
-    // set_rotation_index(uv,Fuv,R,offset);
     R.setZero(P.rows());
     for(int i=0;i<P.rows();i++){
         R(i) = Rmap[bd0(i)]/360;
     }
-
+    //set_rotation_index(uv,Fuv,R,0);
     igl::opengl::glfw::Viewer vr;
-    vr.core.align_camera_center(P);
+    vr.core().align_camera_center(P);
     for(int i=0;i<P.rows();i++){
         int i_1 = (i+1) % P.rows();
         if(R(i) != 0)
