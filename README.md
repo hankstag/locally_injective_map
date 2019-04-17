@@ -1,13 +1,18 @@
-# libigl example project
+# Locally Injective Parametrization with Arbitrary Fixed Boundaries
 
-A blank project example showing how to use libigl and cmake. Feel free and
-encouraged to copy or fork this project as a way of starting a new personal
-project using libigl.
+(Unofficial) Implementation of the paper: Locally Injective Parametrization with Arbitrary Fixed Boundaries
 
-## See the tutorial first
+Ofir Weber
+Bar Ilan University, Israel
+Denis Zorin
+New York University, USA
 
-Then build, run and understand the [libigl
-tutorial](http://libigl.github.io/libigl/tutorial/).
+## What does it do
+
+> We present an algorithm for mapping a triangle mesh, which is homeomorphic to a disk, to a planar domain with arbitrary fixed boundaries. The algorithm is guaranteed to produce a globally bijective map when the boundary is fixed to a shape that does not self-intersect. 
+Meaning: given a model with disk topology, and a target 2D polygon (weakly self-overlapping or non-self-intersect), generate an locally injective/globally bijective map.
+
+Here are some examples using the cut from the dataset (http://vcg.isti.cnr.it/Publications/2014/MPZ14/)
 
 ## Compile
 
@@ -18,19 +23,17 @@ Compile this project using the standard cmake routine:
     cmake ..
     make
 
-This should find and build the dependencies and create a `example_bin` binary.
+This should find and build the dependencies and create a `param_bin` binary.
 
 ## Run
 
 From within the `build` directory just issue:
 
-    ./example_bin
-
-A glfw app should launch displaying a 3D cube.
+    ./param_bin --in path_to_data
 
 ## Dependencies
 
-The only dependencies are stl, eigen, [libigl](http://libigl.github.io/libigl/) and
+The only dependencies are stl, eigen, my fork of [libigl](https://github.com/hankstag/libigl.git) (branch `dev`) and
 the dependencies of the `igl::opengl::glfw::Viewer`.
 
 We recommend you to install libigl using git via:
