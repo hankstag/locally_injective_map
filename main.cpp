@@ -19,60 +19,18 @@ int main(int argc, char *argv[]){
     if(cmdl[{"-h","-help"}]){
         std::cout<<"Usage: ./param_bin -options"<<std::endl;
         std::cout<<"-in: input disk model"<<std::endl;
-        std::cout<<"-poly: target polygon"<<std::endl;
-        std::cout<<"-r: rotation index info"<<std::endl;
-        std::cout<<"-out: output path"<<std::endl;
         exit(0);
     }
-    // test_segment_segment_intersect();
-    // test_ear_clipping();
-    int loop, threshold;
-    bool extract_bd;
-    std::string model_name, ri_file, poly_file, uvfile;
+    std::string model_name;
     cmdl("-in") >> model_name;
-    cmdl("-uv") >> uvfile;
-    cmdl("-r") >> ri_file;
-    cmdl("-poly") >> poly_file;
-    if(uvfile=="" || ri_file==""){
-        uvfile=model_name;
-        ri_file=model_name;
-    }
+
     Eigen::MatrixXd V,uv;
-    Eigen::MatrixXi F,Fuv;
+    Eigen::MatrixXi F;
     Eigen::MatrixXd P;
     Eigen::VectorXi R,T;
-    Eigen::VectorXi bd0,bd1;
-    std::map<int,int> Rmap;
-    load_rotation_index(ri_file,Rmap);
-    load_model_with_seam(model_name,V,F,P,bd0);
-    // std::pair<int,int> match;
-    // load_matching_info(uvfile,match);
-    Eigen::MatrixXd _polygon;
-    load_model_with_seam(uvfile,uv,Fuv,_polygon,bd1);
-    // uv.conservativeResize(uv.rows(),2);
-    // int id0 = 0,id1 = 0;
-    // for(int i=0;i<bd0.rows();i++){
-    //     if(bd0(i) == match.first)
-    //         id0 = i;
-    //     if(bd1(i) == match.second)
-    //         id1 = i;
-    // }
-    // int offset = (id1-id0+bd1.rows())%bd1.rows();
-    // std::cout<<"setting rotation index..."<<std::endl;
-    R.setZero(P.rows());
-    for(int i=0;i<P.rows();i++){
-        R(i) = Rmap[bd0(i)]/360;
-    }
-    //set_rotation_index(uv,Fuv,R,0);
-    igl::opengl::glfw::Viewer vr;
-    vr.core().align_camera_center(P);
-    for(int i=0;i<P.rows();i++){
-        int i_1 = (i+1) % P.rows();
-        if(R(i) != 0)
-            vr.data().add_points(P.row(i),Eigen::RowVector3d(0,0,0));
-        vr.data().add_edges(P.row(i),P.row(i_1),Eigen::RowVector3d(1,0,0));
-    }
-    vr.launch();
+    
+    load_model(model_name,V,uv,F,P,R,T);
+    set_rotation_index(uv,F,R,0);
     Eigen::MatrixXi Fn;
     locally_injective_map(V,F,P,R,T,uv,Fn);
     // Plot the mesh

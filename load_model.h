@@ -21,4 +21,14 @@ void load_rotation_index(
     std::map<int,int>& Rmap
 );
 
+void load_model(
+  std::string model, 
+  Eigen::MatrixXd& V,
+  Eigen::MatrixXd& uv,
+  Eigen::MatrixXi& F,
+  Eigen::MatrixXd& P,
+  Eigen::VectorXi& R,
+  Eigen::VectorXi& T
+);
+
 #endif
