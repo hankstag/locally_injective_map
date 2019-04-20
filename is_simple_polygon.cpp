@@ -113,16 +113,33 @@ bool is_simple_polygon(const Eigen::MatrixXd& P){
     is_simple_result = true;
     // build segments list
     std::vector<Segment> segments;
+    // re-organize polygon edges
+    Eigen::MatrixXd sg(P.rows(),4);
+    for(int i=0;i<P.rows();i++){
+      if(P(i,0) > P(i_1,0) || (P(i,0) == P(i_1,0) && P(i,1) > P(i_1,1)))
+        sg.row(i) << P.row(i_1), P.row(i);
+      else
+        sg.row(i) << P.row(i), P.row(i_1);
+    }
     for(int i=0;i<P.rows();i++){
         int i_1 = (i+1)%P.rows();
         Point p1 = Point(P(i,  0),P(i  ,1),i  );
         Point p2 = Point(P(i_1,0),P(i_1,1),i_1);
+        if(P(i,0) > P(i_1,0) || (P(i,0) == P(i_1,0) && P(i,1) > P(i_1,1)))
+          sg.row(i) << P.row(i_1), P.row(i);
+        else
+          sg.row(i) << P.row(i), P.row(i_1);
         if(p1>p2)
             segments.push_back(Segment(p2,p1,segments.size()));
         else 
             segments.push_back(Segment(p1,p2,segments.size()));
     }
-
+    for(int i=0;i<sg.rows();i++){
+      if(std::get<0>(std::get<0>(segments[i])) != sg(i,0)){
+        std::cout<<"wrong"<<std::endl;
+        exit(0);
+      }
+    }
     // build event list (sort segments)
     auto later = [](const Event& a, const Event& b){
         if(std::get<0>(a) == std::get<0>(b)){

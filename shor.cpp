@@ -5,6 +5,9 @@
 #include <igl/predicates/predicates.h>
 #include <igl/predicates/ear_clipping.h>
 #include "is_simple_polygon.h"
+
+#include "plot.h"
+
 #include <iostream>
 
 using namespace std;
@@ -159,7 +162,7 @@ void drop_colinear(
     Eigen::RowVector2d pv = P.row(v);
     Eigen::RowVector2d pb = P.row(b);
     
-    if(R(v)!=0 || igl::predicates::orient2d(pa,pv,pv)!=igl::predicates::Orientation::COLLINEAR){ // non-colinear or rotate index nonzero
+    if(R(v)!=0 || igl::predicates::orient2d(pa,pv,pb)!=igl::predicates::Orientation::COLLINEAR){ // non-colinear or rotate index nonzero
       Bv.push_back(v);
     }else
       dropped++;
@@ -359,7 +362,7 @@ void simplify_triangulation(
     LE<<Eigen::VectorXi::LinSpaced(LP.rows(),0,LP.rows()-1),
         Eigen::VectorXi::LinSpaced(LP.rows(),1,LP.rows());
     LE(LE.rows()-1,1) = 0;
-    igl::triangle::triangulate(LP,LE,Eigen::MatrixXd(),"YQq33",LV,LF);    
+    //igl::triangle::triangulate(LP,LE,Eigen::MatrixXd(),"YQq33",LV,LF);    
     Eigen::MatrixXd nV = LV.bottomRows(LV.rows()-LP.rows());
     int n_o = V.rows();
     V.conservativeResize(V.rows()+nV.rows(),2);
@@ -400,7 +403,10 @@ bool Shor_van_wyck(
   Eigen::VectorXi nR;
   igl::predicates::ear_clipping(mP,mR,D,eF,nP);
   igl::slice(mR,D,1,nR);
-
+  igl::opengl::glfw::Viewer vr;
+  Eigen::VectorXi II;
+  plot_polygon(vr,II,mP);
+  vr.launch();
   // [weakly-self-overlapping test]
   Eigen::MatrixXi nF;
   bool succ = (nP.rows()==0) || weakly_self_overlapping(nP,nR,nF);

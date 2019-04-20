@@ -468,7 +468,7 @@ void locally_injective_map(
     // [triangulate target domain]
     Eigen::MatrixXd V2;
     Eigen::MatrixXi F2;
-    Shor_van_wyck(P,R,"",V2,F2,true);
+    Shor_van_wyck(P,R,"",V2,F2,false);
     
     // [using tutte embedding generate common domain]
     Eigen::VectorXi B1,B2;

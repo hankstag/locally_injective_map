@@ -2,7 +2,7 @@
 #define SHOR_H
 #include <Eigen/Core>
 #include <iostream>
-#include <igl/triangle/triangulate.h>
+//#include <igl/triangle/triangulate.h>
 #include <igl/slice.h>
 #include <igl/list_to_matrix.h>
 
