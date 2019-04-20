@@ -2,18 +2,23 @@
 #include <igl/boundary_loop.h>
 #include <igl/adjacency_list.h>
 
-#include <igl/copyleft/cgal/orient2D.h>
-#include <igl/copyleft/cgal/ear_clipping.h>
+#include <igl/predicates/predicates.h>
+#include <igl/predicates/ear_clipping.h>
 #include "is_simple_polygon.h"
 #include <iostream>
 
 using namespace std;
 
 short orientation(const Eigen::Matrix<double,3,2>& P){
-    double a[2] = {P(0, 0), P(0, 1)};
-    double b[2] = {P(1, 0), P(1, 1)};
-    double c[2] = {P(2, 0), P(2, 1)};
-    return igl::copyleft::cgal::orient2D(a, b, c);
+  Eigen::RowVector2d p0,p1,p2;
+  p0 << P(0,0),P(0,1);
+  p1 << P(1,0),P(1,1);
+  p2 << P(2,0),P(2,1);
+  switch(igl::predicates::orient2d(p0,p1,p2)){
+    case igl::predicates::Orientation::COLLINEAR: return 0; break;
+    case igl::predicates::Orientation::NEGATIVE: return -1; break;
+    case igl::predicates::Orientation::POSITIVE: return 1; break;
+  }
 }
 
 void set_rotation_index(
@@ -71,12 +76,16 @@ bool weakly_self_overlapping(
     int i, int k, int j
   ){
     const int N = P.rows();
-    Eigen::Matrix<double,3,2> tri;
-    tri<<P.row(i),P.row(k),P.row(j);
-    if(orientation(tri)<=0) return false;
+    Eigen::RowVector2d pi = P.row(i);
+    Eigen::RowVector2d pk = P.row(k);
+    Eigen::RowVector2d pj = P.row(j);
+    auto r = igl::predicates::orient2d(pi,pk,pj);
+    if(r == igl::predicates::Orientation::COLLINEAR ||
+       r == igl::predicates::Orientation::NEGATIVE)
+    return false;
     
-    Angle I(tri.row(2),tri.row(0),tri.row(1)); // J I K
-    Angle J(tri.row(1),tri.row(2),tri.row(0)); // K J I
+    Angle I(pj,pi,pk); // J I K
+    Angle J(pk,pj,pi); // K J I
     
     Angle k1 = LA[i][k];        
     Angle k2(P.row(i),P.row(k),P.row(j));
@@ -146,9 +155,11 @@ void drop_colinear(
     int a = (i-1+N)%N;
     int v = i;
     int b = (i+1)%N;
-    Eigen::Matrix<double,3,2> T;
-    T<<P.row(a),P.row(v),P.row(b);
-    if(R(v)!=0 || orientation(T)!=0){ // non-colinear or rotate index nonzero
+    Eigen::RowVector2d pa = P.row(a);
+    Eigen::RowVector2d pv = P.row(v);
+    Eigen::RowVector2d pb = P.row(b);
+    
+    if(R(v)!=0 || igl::predicates::orient2d(pa,pv,pv)!=igl::predicates::Orientation::COLLINEAR){ // non-colinear or rotate index nonzero
       Bv.push_back(v);
     }else
       dropped++;
@@ -387,7 +398,7 @@ bool Shor_van_wyck(
   Eigen::MatrixXi eF;
   Eigen::MatrixXd nP;
   Eigen::VectorXi nR;
-  igl::copyleft::cgal::ear_clipping(mP,mR,D,eF,nP);
+  igl::predicates::ear_clipping(mP,mR,D,eF,nP);
   igl::slice(mR,D,1,nR);
 
   // [weakly-self-overlapping test]

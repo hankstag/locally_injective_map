@@ -8,25 +8,6 @@
 #include <unordered_set>
 #include <set>
 
-// robustly test whether two 2d-segments intersect
-template <typename DerivedV>
-bool segment_segment_intersect(
-    const Eigen::MatrixBase<DerivedV>& A,
-    const Eigen::MatrixBase<DerivedV>& B,
-    const Eigen::MatrixBase<DerivedV>& C,
-    const Eigen::MatrixBase<DerivedV>& D,
-    typename DerivedV::Scalar eps
-);
-
-template <typename Scalar>
-bool segment_segment_intersect(
-    const Scalar a[2], 
-    const Scalar b[2], 
-    const Scalar c[2], 
-    const Scalar d[2],
-    const Scalar eps
-);
-
 template <typename DerivedV>
 bool segment_segment_intersect(
     const Eigen::MatrixBase<DerivedV>& A,

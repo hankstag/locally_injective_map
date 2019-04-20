@@ -3,7 +3,8 @@
 #include <queue>
 #include <algorithm>
 #include <fstream>
-#include <igl/copyleft/cgal/orient2D.h>
+#include <igl/predicates/predicates.h>
+#include <igl/predicates/segment_segment_intersect.h>
 #include <iostream>
 
 typedef std::tuple<double,double,int> Point;
@@ -30,15 +31,20 @@ struct Order{
         // |      else 
         // |          return a0.y < b0.y
         auto left_is_higher = [&](const Segment& seg1, const Segment& seg2){
-            double al[2] = {std::get<0>(std::get<0>(seg1)), std::get<1>(std::get<0>(seg1))};
-            double ar[2] = {std::get<0>(std::get<1>(seg1)), std::get<1>(std::get<1>(seg1))};
-            double bl[2] = {std::get<0>(std::get<0>(seg2)), std::get<1>(std::get<0>(seg2))};
-            double br[2] = {std::get<0>(std::get<1>(seg2)), std::get<1>(std::get<1>(seg2))};
-            switch(igl::copyleft::cgal::orient2D(al,ar,bl)){
-                case -1: return false;break;
-                case 1 : return true ;break;
-                case 0 : if(std::get<2>(std::get<0>(seg2)) != std::get<2>(std::get<0>(seg1)) &&
-                            std::get<2>(std::get<0>(seg2)) != std::get<2>(std::get<1>(seg1)))
+            Eigen::RowVector2d al; 
+            al << std::get<0>(std::get<0>(seg1)), std::get<1>(std::get<0>(seg1));
+            Eigen::RowVector2d ar; 
+            ar << std::get<0>(std::get<1>(seg1)), std::get<1>(std::get<1>(seg1));
+            Eigen::RowVector2d bl; 
+            bl << std::get<0>(std::get<0>(seg2)), std::get<1>(std::get<0>(seg2));
+            Eigen::RowVector2d br; 
+            br << std::get<0>(std::get<1>(seg2)), std::get<1>(std::get<1>(seg2));
+            switch(igl::predicates::orient2d(al,ar,bl)){
+                case igl::predicates::Orientation::NEGATIVE : return false;break;
+                case igl::predicates::Orientation::POSITIVE : return true ;break;
+                case igl::predicates::Orientation::COLLINEAR: 
+                      if(std::get<2>(std::get<0>(seg2)) != std::get<2>(std::get<0>(seg1)) &&
+                         std::get<2>(std::get<0>(seg2)) != std::get<2>(std::get<1>(seg1)))
                             // b1 and a0 a1 are not the same point
                             is_simple_result = false;
                          else return (al[1]<bl[1]);
@@ -51,14 +57,18 @@ struct Order{
             return (std::get<0>(a0) > std::get<0>(b0)) ? !left_is_higher(b,a) : left_is_higher(a,b);
         }else{
             if(std::get<1>(a0) == std::get<1>(b0)){ // or use vertex id
-                double al[2] = {std::get<0>(std::get<0>(a)), std::get<1>(std::get<0>(a))};
-                double ar[2] = {std::get<0>(std::get<1>(a)), std::get<1>(std::get<1>(a))};
-                double bl[2] = {std::get<0>(std::get<0>(b)), std::get<1>(std::get<0>(b))};
-                double br[2] = {std::get<0>(std::get<1>(b)), std::get<1>(std::get<1>(b))};
-                switch(igl::copyleft::cgal::orient2D(al,ar,br)){
-                    case -1: return false;break;
-                    case 1 : return true ;break;
-                    case 0 : is_simple_result = false;
+                Eigen::RowVector2d al;
+                al << std::get<0>(std::get<0>(a)), std::get<1>(std::get<0>(a));
+                Eigen::RowVector2d ar;
+                ar << std::get<0>(std::get<1>(a)), std::get<1>(std::get<1>(a));
+                Eigen::RowVector2d bl;
+                bl << std::get<0>(std::get<0>(b)), std::get<1>(std::get<0>(b));
+                Eigen::RowVector2d br;
+                br << std::get<0>(std::get<1>(b)), std::get<1>(std::get<1>(b));
+                switch(igl::predicates::orient2d(al,ar,br)){
+                    case igl::predicates::Orientation::NEGATIVE  : return false;break;
+                    case igl::predicates::Orientation::POSITIVE  : return true ;break;
+                    case igl::predicates::Orientation::COLLINEAR : is_simple_result = false;
                 }
                 return false;
             }else 
@@ -85,11 +95,15 @@ bool disjoint_segment_intersect(
         else
             return false;
     }
-    double a[2] = {std::get<0>(std::get<0>(s1)),std::get<1>(std::get<0>(s1))};
-    double b[2] = {std::get<0>(std::get<1>(s1)),std::get<1>(std::get<1>(s1))};
-    double c[2] = {std::get<0>(std::get<0>(s2)),std::get<1>(std::get<0>(s2))};
-    double d[2] = {std::get<0>(std::get<1>(s2)),std::get<1>(std::get<1>(s2))};
-    return segment_segment_intersect(a,b,c,d,0.0);
+    Eigen::RowVector2d a; 
+    a << std::get<0>(std::get<0>(s1)),std::get<1>(std::get<0>(s1));
+    Eigen::RowVector2d b; 
+    b << std::get<0>(std::get<1>(s1)),std::get<1>(std::get<1>(s1));
+    Eigen::RowVector2d c; 
+    c << std::get<0>(std::get<0>(s2)),std::get<1>(std::get<0>(s2));
+    Eigen::RowVector2d d; 
+    d << std::get<0>(std::get<1>(s2)),std::get<1>(std::get<1>(s2));
+    return igl::predicates::segment_segment_intersect(a,b,c,d);
 }
 
 bool is_simple_polygon(const Eigen::MatrixXd& P){

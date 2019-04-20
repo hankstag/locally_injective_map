@@ -1,15 +1,20 @@
 #include "segments_intersect.h"
 #include <igl/segment_segment_intersect.h>
-#include <igl/copyleft/cgal/orient2D.h>
+#include <igl/predicates/predicates.h>
 
 template <typename DerivedV>
 short orientation(const Eigen::MatrixBase<DerivedV>& P){
     typedef typename DerivedV::Scalar Scalar;
     if(P.rows()==3){
-        double a[2] = {double(P(0, 0)), double(P(0, 1))};
-        double b[2] = {double(P(1, 0)), double(P(1, 1))};
-        double c[2] = {double(P(2, 0)), double(P(2, 1))};
-        return igl::copyleft::cgal::orient2D(a, b, c);
+      Eigen::RowVector2d p0,p1,p2;
+      p0 << P(0,0),P(0,1);
+      p1 << P(1,0),P(1,1);
+      p2 << P(2,0),P(2,1);
+      switch(igl::predicates::orient2d(p0,p1,p2)){
+        case igl::predicates::Orientation::COLLINEAR: return 0; break;
+        case igl::predicates::Orientation::NEGATIVE: return -1; break;
+        case igl::predicates::Orientation::POSITIVE: return 1; break;
+      }
     }else{
         double sum = 0;
         int n = P.rows();
@@ -104,47 +109,47 @@ bool segment_segment_intersect(
 }
 
 // assume m,n,p are colinear, check whether p is on [m,n]
-template <typename Scalar>
-bool on_segment(
-    const Scalar m[2],
-    const Scalar n[2],
-    const Scalar p[2],
-    const Scalar eps
-){
-    // if eps is 0, meaning the segments are closed 
-    // (exactly equal to end points is considered intersection)
+// template <typename Scalar>
+// bool on_segment(
+//     const Scalar m[2],
+//     const Scalar n[2],
+//     const Scalar p[2],
+//     const Scalar eps
+// ){
+//     // if eps is 0, meaning the segments are closed 
+//     // (exactly equal to end points is considered intersection)
 
-    // if segment is open, meaning there is a neighborhood (-eps,eps)
-    // s.t. if p is within the neighborhood, it's considered on segment
-    return ((p[0] >= std::min(m[0],n[0])-eps) &&
-            (p[0] <= std::max(m[0],n[0])+eps) &&
-            (p[1] >= std::min(m[1],n[1])-eps) &&
-            (p[1] <= std::max(m[1],n[1])+eps));
-}
+//     // if segment is open, meaning there is a neighborhood (-eps,eps)
+//     // s.t. if p is within the neighborhood, it's considered on segment
+//     return ((p[0] >= std::min(m[0],n[0])-eps) &&
+//             (p[0] <= std::max(m[0],n[0])+eps) &&
+//             (p[1] >= std::min(m[1],n[1])-eps) &&
+//             (p[1] <= std::max(m[1],n[1])+eps));
+// }
 
-template <typename Scalar>
-bool segment_segment_intersect(
-    const Scalar a[2], 
-    const Scalar b[2], 
-    const Scalar c[2], 
-    const Scalar d[2],
-    const Scalar eps
-){
+// template <typename Scalar>
+// bool segment_segment_intersect(
+//     const Scalar a[2], 
+//     const Scalar b[2], 
+//     const Scalar c[2], 
+//     const Scalar d[2],
+//     const Scalar eps
+// ){
 
-    short t1 = igl::copyleft::cgal::orient2D(a,b,c);
-    short t2 = igl::copyleft::cgal::orient2D(b,c,d);
-    short t3 = igl::copyleft::cgal::orient2D(a,b,d);
-    short t4 = igl::copyleft::cgal::orient2D(a,c,d);
+//     short t1 = igl::predicates::orient2d(a,b,c);
+//     short t2 = igl::predicates::orient2d(b,c,d);
+//     short t3 = igl::predicates::orient2d(a,b,d);
+//     short t4 = igl::predicates::orient2d(a,c,d);
     
-    // colinear case        
-    if((t1 == 0 && on_segment(a,b,c,eps)) ||
-       (t2 == 0 && on_segment(c,d,b,eps)) ||
-       (t3 == 0 && on_segment(a,b,d,eps)) ||
-       (t4 == 0 && on_segment(c,d,a,eps))) return true;
+//     // colinear case        
+//     if((t1 == 0 && on_segment(a,b,c,eps)) ||
+//        (t2 == 0 && on_segment(c,d,b,eps)) ||
+//        (t3 == 0 && on_segment(a,b,d,eps)) ||
+//        (t4 == 0 && on_segment(c,d,a,eps))) return true;
     
-    // ordinary case
-    return (t1 != t3 && t2 != t4);
-}
+//     // ordinary case
+//     return (t1 != t3 && t2 != t4);
+// }
 
 // template <typename DerivedV>
 // bool segment_segment_intersect(
@@ -168,38 +173,41 @@ bool segment_segment_intersect(
 //     return succ;
 // }
 
-template <typename DerivedV>
-bool segment_segment_intersect(
-    const Eigen::MatrixBase<DerivedV>& A,
-    const Eigen::MatrixBase<DerivedV>& B,
-    const Eigen::MatrixBase<DerivedV>& C,
-    const Eigen::MatrixBase<DerivedV>& D, 
-    typename DerivedV::Scalar eps
-){
-    typedef typename DerivedV::Scalar Scalar;
+// template <typename DerivedV>
+// bool segment_segment_intersect(
+//     const Eigen::MatrixBase<DerivedV>& A,
+//     const Eigen::MatrixBase<DerivedV>& B,
+//     const Eigen::MatrixBase<DerivedV>& C,
+//     const Eigen::MatrixBase<DerivedV>& D, 
+//     typename DerivedV::Scalar eps
+// ){
+//     typedef typename DerivedV::Scalar Scalar;
 
-    Scalar a[2] = {A(0),A(1)};
-    Scalar b[2] = {B(0),B(1)};
-    Scalar c[2] = {C(0),C(1)};
-    Scalar d[2] = {D(0),D(1)};
+//     Scalar a[2] = {A(0),A(1)};
+//     Scalar b[2] = {B(0),B(1)};
+//     Scalar c[2] = {C(0),C(1)};
+//     Scalar d[2] = {D(0),D(1)};
     
-    return segment_segment_intersect(a,b,c,d,eps);
+//     return segment_segment_intersect(a,b,c,d,eps);
 
-}
+// }
 
-void test_segment_segment_intersect(){
-    Eigen::RowVector2d a(0,0);
-    Eigen::RowVector2d b(1,9);
-    Eigen::RowVector2d c(0,0);
-    Eigen::RowVector2d d(0,1);
-    std::cout<<std::setprecision(20)<<b<<std::endl;
-    std::cout<<std::setprecision(20)<<c<<std::endl;
-    std::cout<<"intersect?: "<<segment_segment_intersect(a,b,c,d,0)<<std::endl;
-}
-
-template short orientation<Eigen::Matrix<double, 3, 2, 0, 3, 2> >(Eigen::MatrixBase<Eigen::Matrix<double, 3, 2, 0, 3, 2> > const&);
-template short orientation<Eigen::Matrix<double, -1, -1, 0, -1, -1> >(Eigen::MatrixBase<Eigen::Matrix<double, -1, -1, 0, -1, -1> > const&);
-template bool segment_segment_intersect<double>(double const*, double const*, double const*, double const*, double);
-template bool segment_segment_intersect<Eigen::Matrix<double, 1, 2, 1, 1, 2> >(Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::Matrix<double, 1, 2, 1, 1, 2>::Scalar);
-template bool segment_segment_intersect<Eigen::Matrix<double, 1, 2, 1, 1, 2> >(Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::PlainObjectBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> >&, bool);
+// void test_segment_segment_intersect(){
+//     Eigen::RowVector2d a(0,0);
+//     Eigen::RowVector2d b(1,9);
+//     Eigen::RowVector2d c(0,0);
+//     Eigen::RowVector2d d(0,1);
+//     std::cout<<std::setprecision(20)<<b<<std::endl;
+//     std::cout<<std::setprecision(20)<<c<<std::endl;
+//     std::cout<<"intersect?: "<<segment_segment_intersect(a,b,c,d,0)<<std::endl;
+// }
 template bool segment_segment_intersect<Eigen::Matrix<double, 1, -1, 1, 1, -1> >(Eigen::MatrixBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> > const&, Eigen::PlainObjectBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> >&, bool);
+template short orientation<Eigen::Matrix<double, -1, -1, 0, -1, -1> >(Eigen::MatrixBase<Eigen::Matrix<double, -1, -1, 0, -1, -1> > const&);
+//template bool segment_segment_intersect<Eigen::Matrix<double, 1, 2, 1, 1, 2> >(Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::PlainObjectBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> >&, bool);
+//template bool segment_segment_intersect<Eigen::Matrix<double, 1, -1, 1, 1, -1> >(Eigen::MatrixBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> > const&, Eigen::PlainObjectBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> >&, bool);
+// template short orientation<Eigen::Matrix<double, 3, 2, 0, 3, 2> >(Eigen::MatrixBase<Eigen::Matrix<double, 3, 2, 0, 3, 2> > const&);
+// template short orientation<Eigen::Matrix<double, -1, -1, 0, -1, -1> >(Eigen::MatrixBase<Eigen::Matrix<double, -1, -1, 0, -1, -1> > const&);
+// template bool segment_segment_intersect<double>(double const*, double const*, double const*, double const*, double);
+// template bool segment_segment_intersect<Eigen::Matrix<double, 1, 2, 1, 1, 2> >(Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::Matrix<double, 1, 2, 1, 1, 2>::Scalar);
+// template bool segment_segment_intersect<Eigen::Matrix<double, 1, 2, 1, 1, 2> >(Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> > const&, Eigen::PlainObjectBase<Eigen::Matrix<double, 1, 2, 1, 1, 2> >&, bool);
+// template bool segment_segment_intersect<Eigen::Matrix<double, 1, -1, 1, 1, -1> >(Eigen::MatrixBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> > const&, Eigen::MatrixBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> > const&, Eigen::PlainObjectBase<Eigen::Matrix<double, 1, -1, 1, 1, -1> >&, bool);

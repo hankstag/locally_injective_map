@@ -1,7 +1,8 @@
 
 #include "locally_injective_map.h"
 #include "segments_intersect.h"
-#include <igl/copyleft/cgal/ear_clipping.h>
+#include <igl/predicates/segment_segment_intersect.h>
+#include <igl/predicates/ear_clipping.h>
 #include <igl/opengl/glfw/Viewer.h>
 
 using namespace std;
@@ -211,7 +212,7 @@ void simplify(PointMap<Scalar>& pMap, const Eigen::MatrixXi& Fn, const std::vect
         Eigen::Matrix<Scalar,1,2> _q;
         c<<P(e,0),P(e,1);
         d<<P((e + 1)%N,0),P((e + 1)%N,1);
-        if(segment_segment_intersect(a,b,c,d,_q,false)){
+        if(igl::predicates::segment_segment_intersect(a,b,c,d)){
             cross = true;
             break;
         }
@@ -335,7 +336,7 @@ bool triangulate_face(
         R.setZero();
 	    Eigen::VectorXi R_,D_;
 	    Eigen::MatrixXd nP_;
-      igl::copyleft::cgal::ear_clipping(P,R,D_,eF,nP_);
+      igl::predicates::ear_clipping(P,R,D_,eF,nP_);
     }
     int nf=Fn.rows();
     Fn.conservativeResize(Fn.rows()+eF.rows(),Eigen::NoChange);
