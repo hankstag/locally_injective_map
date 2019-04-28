@@ -116,6 +116,7 @@ bool is_simple_polygon(const Eigen::MatrixXd& P){
     // re-organize polygon edges
     Eigen::MatrixXd sg(P.rows(),4);
     for(int i=0;i<P.rows();i++){
+      int i_1 = (i+1) % P.rows();
       if(P(i,0) > P(i_1,0) || (P(i,0) == P(i_1,0) && P(i,1) > P(i_1,1)))
         sg.row(i) << P.row(i_1), P.row(i);
       else
