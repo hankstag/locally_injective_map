@@ -6,7 +6,9 @@
 #include <igl/predicates/ear_clipping.h>
 #include "is_simple_polygon.h"
 
-#include "plot.h"
+#include <igl/opengl/glfw/Viewer.h>
+#include <igl/triangle/triangulate.h>
+// #include "plot.h"
 
 #include <iostream>
 
@@ -362,7 +364,7 @@ void simplify_triangulation(
     LE<<Eigen::VectorXi::LinSpaced(LP.rows(),0,LP.rows()-1),
         Eigen::VectorXi::LinSpaced(LP.rows(),1,LP.rows());
     LE(LE.rows()-1,1) = 0;
-    //igl::triangle::triangulate(LP,LE,Eigen::MatrixXd(),"YQq33",LV,LF);    
+    igl::triangle::triangulate(LP,LE,Eigen::MatrixXd(),"YQq33",LV,LF);    
     Eigen::MatrixXd nV = LV.bottomRows(LV.rows()-LP.rows());
     int n_o = V.rows();
     V.conservativeResize(V.rows()+nV.rows(),2);
@@ -403,10 +405,10 @@ bool Shor_van_wyck(
   Eigen::VectorXi nR;
   igl::predicates::ear_clipping(mP,mR,D,eF,nP);
   igl::slice(mR,D,1,nR);
-  igl::opengl::glfw::Viewer vr;
-  Eigen::VectorXi II;
-  plot_polygon(vr,II,mP);
-  vr.launch();
+  // igl::opengl::glfw::Viewer vr;
+  // Eigen::VectorXi II;
+  // plot_polygon(vr,II,mP);
+  // vr.launch();
   // [weakly-self-overlapping test]
   Eigen::MatrixXi nF;
   bool succ = (nP.rows()==0) || weakly_self_overlapping(nP,nR,nF);

@@ -1,6 +1,7 @@
 
 #include "locally_injective_map.h"
 #include "segments_intersect.h"
+
 #include <igl/predicates/segment_segment_intersect.h>
 #include <igl/predicates/ear_clipping.h>
 #include <igl/opengl/glfw/Viewer.h>
@@ -381,7 +382,8 @@ void refineTriangle(
         Eigen::Matrix<Scalar,1,Eigen::Dynamic> o = vh_s.row(v1);
         Eigen::Matrix<Scalar,1,Eigen::Dynamic> t = vh_s.row(v2);
         
-        Eigen::PlainObjectBase<DerivedV> IT;
+        // Eigen::PlainObjectBase<DerivedV> IT;
+        Eigen::MatrixXd IT;
         Eigen::Matrix<Scalar,1,Eigen::Dynamic> q,nq=o;
         bool found_intersection = true;
         std::unordered_map<std::pair<int,int>, bool> check;
@@ -419,7 +421,8 @@ void refineTriangle(
         pMap.add_point(e,std::make_tuple(get<0>(uv_vec[v1]),get<1>(uv_vec[v1]),0.0),
                          std::make_tuple(V(v1,0),V(v1,1),V(v1,2)));
 
-        Eigen::PlainObjectBase<DerivedV> Ts,Tt; // intersection points
+        // Eigen::PlainObjectBase<DerivedV> Ts,Tt; // intersection points
+        Eigen::MatrixXd Ts, Tt;
         get_image(vh_s,Fs,IT,s_tree,V,Ts);
         get_image(vh_t,Ft,IT,t_tree,Vd,Tt);
         std::vector<int> v_ids;
@@ -468,7 +471,7 @@ void locally_injective_map(
     // [triangulate target domain]
     Eigen::MatrixXd V2;
     Eigen::MatrixXi F2;
-    Shor_van_wyck(P,R,"",V2,F2,false);
+    Shor_van_wyck(P,R,"",V2,F2,true);
     
     // [using tutte embedding generate common domain]
     Eigen::VectorXi B1,B2;
